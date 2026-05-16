@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:icon="@android:drawable/ic_menu_today"
+        android:title="홈" />
+    <item
+        android:id="@+id/nav_plan"
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        android:title="플랜" />
+    <item
+        android:id="@+id/nav_run"
+        android:icon="@android:drawable/ic_menu_directions"
+        android:title="러닝" />
+    <item
+        android:id="@+id/nav_club"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="클럽" />
+    <item
+        android:id="@+id/nav_activity"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:title="활동" />
+</menu>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/nav_run">
+
+    <fragment
+        android:id="@+id/nav_home"
+        android:name="com.example.makepacetestver.ui.HomeFragment"
+        android:label="Home" />
+
+    <fragment
+        android:id="@+id/nav_plan"
+        android:name="com.example.makepacetestver.ui.PlanFragment"
+        android:label="Plan" />
+
+    <fragment
+        android:id="@+id/nav_run"
+        android:name="com.example.makepacetestver.ui.RunFragment"
+        android:label="Run" />
+
+    <fragment
+        android:id="@+id/nav_club"
+        android:name="com.example.makepacetestver.ui.ClubFragment"
+        android:label="Club" />
+
+    <fragment
+        android:id="@+id/nav_activity"
+        android:name="com.example.makepacetestver.ui.HistoryFragment"
+        android:label="Activity" />
+
+    <fragment
+        android:id="@+id/runDetailFragment"
+        android:name="com.example.makepacetestver.ui.RunDetailFragment"
+        android:label="Run Detail" />
+</navigation>
