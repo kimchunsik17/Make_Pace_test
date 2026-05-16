@@ -1,12 +1,16 @@
 package com.example.makepacetestver.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.example.makepacetestver.data.db.AppDatabase
 import com.example.makepacetestver.data.db.RunEntity
 import com.example.makepacetestver.databinding.FragmentRunDetailBinding
@@ -41,6 +45,9 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
         binding.detailMapView.onCreate(savedInstanceState)
         binding.detailMapView.getMapAsync(this)
 
+        binding.btnShare.setOnClickListener { shareRun() }
+        binding.btnDelete.setOnClickListener { confirmDelete() }
+
         if (runId != -1L) {
             viewLifecycleOwner.lifecycleScope.launch {
                 val run = AppDatabase.getDatabase(requireContext()).getRunDao().getRunById(runId)
@@ -66,6 +73,42 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
         binding.tvDetailElevation.text = String.format(Locale.getDefault(), "%.0fm", run.elevationGain)
     }
 
+    private fun shareRun() {
+        val run = runEntity ?: return
+        val shareText = """
+            🏃 Make Pace 러닝 기록
+            날짜: ${binding.tvDetailDate.text}
+            거리: ${binding.tvDetailDistance.text}
+            페이스: ${run.avgPace}
+            시간: ${binding.tvDetailDuration.text}
+            상승 고도: ${run.elevationGain.toInt()}m
+        """.trimIndent()
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+        startActivity(Intent.createChooser(intent, "러닝 기록 공유"))
+    }
+
+    private fun confirmDelete() {
+        AlertDialog.Builder(requireContext())
+            .setTitle("기록 삭제")
+            .setMessage("이 러닝 기록을 정말 삭제할까요?")
+            .setPositiveButton("삭제") { _, _ -> deleteRun() }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun deleteRun() {
+        val runId = runEntity?.id ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            AppDatabase.getDatabase(requireContext()).getRunDao().deleteRun(runId)
+            Toast.makeText(requireContext(), "기록이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+            findNavController().popBackStack()
+        }
+    }
+
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
         updateMapIfReady()
@@ -82,7 +125,7 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
             if (points.isNotEmpty()) {
                 val latLngPoints = points.map { LatLng(it.latitude, it.longitude) }
                 val polylineOptions = PolylineOptions()
-                    .color(Color.parseColor("#CEFF00"))
+                    .color(Color.parseColor("#0091EA"))
                     .width(12f)
                     .jointType(JointType.ROUND)
                     .addAll(latLngPoints)

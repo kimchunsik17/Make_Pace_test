@@ -21,4 +21,7 @@ interface RunDao {
 
     @Query("SELECT * FROM run_points WHERE runId = :runId ORDER BY timestamp ASC")
     suspend fun getPointsForRun(runId: Long): List<RunPointEntity>
+
+    @Query("DELETE FROM running_table WHERE id = :runId")
+    suspend fun deleteRun(runId: Long)
 }

@@ -1,6 +1,8 @@
 package com.example.makepacetestver.ui
 
 import android.Manifest
+import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -8,8 +10,10 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.LinearInterpolator
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -24,8 +28,11 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.model.JointType
 import com.google.android.gms.maps.model.PolylineOptions
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class RunFragment : Fragment(), OnMapReadyCallback {
 
@@ -34,7 +41,14 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     private lateinit var viewModel: RunningViewModel
     private var map: GoogleMap? = null
     private var isTracking = false
+    private var isCountingDown = false
+    private var isCooldown = false
     private var isWaitingForPermissions = false
+    private var longPressAnimator: ValueAnimator? = null
+    
+    private var countdownJob: Job? = null
+    private var clickCountDuringCountdown = 0
+    private var lastClickTime = 0L
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -71,19 +85,123 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.mapView.onCreate(savedInstanceState)
         binding.mapView.getMapAsync(this)
 
-        binding.btnStartStop.setOnClickListener {
-            toggleTracking()
-        }
-
+        setupStopButtonLogic()
         observeViewModel()
     }
 
-    private fun toggleTracking() {
-        if (isTracking) {
-            stopTracking()
-        } else {
-            checkPermissionsAndStart()
+    @SuppressLint("ClickableViewAccessibility")
+    private fun setupStopButtonLogic() {
+        binding.btnStartStop.setOnTouchListener { _, event ->
+            if (isCountingDown) {
+                if (event.action == MotionEvent.ACTION_DOWN) {
+                    handleCountdownClick()
+                }
+                return@setOnTouchListener true
+            }
+
+            if (!isTracking) {
+                if (event.action == MotionEvent.ACTION_UP) {
+                    if (isCooldown) {
+                        Toast.makeText(requireContext(), "잠시 후 다시 시작할 수 있습니다.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        checkPermissionsAndStart()
+                    }
+                }
+                return@setOnTouchListener true
+            }
+
+            // 트래킹 중일 때 (일시정지/종료 로직)
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    isLongPressing = false
+                    startLongPressAnimation()
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    val duration = event.eventTime - event.downTime
+                    if (!isLongPressing && duration < 500) {
+                        viewModel.togglePause()
+                    }
+                    stopLongPressAnimation()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    stopLongPressAnimation()
+                    true
+                }
+                else -> false
+            }
         }
+    }
+
+    private var isLongPressing = false
+
+    private fun handleCountdownClick() {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastClickTime < 500) {
+            clickCountDuringCountdown++
+        } else {
+            clickCountDuringCountdown = 1
+        }
+        lastClickTime = currentTime
+
+        if (clickCountDuringCountdown >= 4) {
+            cancelCountdown()
+        }
+    }
+
+    private fun startCountdown() {
+        isCountingDown = true
+        clickCountDuringCountdown = 0
+        binding.tvCountdown.visibility = View.VISIBLE
+        binding.controllerLayout.visibility = View.GONE
+        
+        countdownJob = lifecycleScope.launch {
+            for (i in 3 downTo 1) {
+                binding.tvCountdown.text = i.toString()
+                delay(1000)
+            }
+            binding.tvCountdown.visibility = View.GONE
+            isCountingDown = false
+            startTracking()
+        }
+    }
+
+    private fun cancelCountdown() {
+        countdownJob?.cancel()
+        isCountingDown = false
+        binding.tvCountdown.visibility = View.GONE
+        binding.controllerLayout.visibility = View.VISIBLE
+        Toast.makeText(requireContext(), "시작이 취소되었습니다.", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun startLongPressAnimation() {
+        binding.waveView.visibility = View.VISIBLE
+        longPressAnimator?.cancel()
+        longPressAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 2000
+            interpolator = LinearInterpolator()
+            addUpdateListener { animator ->
+                val progress = animator.animatedValue as Float
+                binding.waveView.setProgress(progress)
+                if (progress >= 1f) {
+                    isLongPressing = true
+                    finishRun()
+                }
+            }
+            start()
+        }
+    }
+
+    private fun stopLongPressAnimation() {
+        longPressAnimator?.cancel()
+        binding.waveView.setProgress(0f)
+        binding.waveView.visibility = View.GONE
+    }
+
+    private fun finishRun() {
+        stopLongPressAnimation()
+        stopTracking()
     }
 
     private fun checkPermissionsAndStart() {
@@ -113,10 +231,10 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             ) {
                 showBackgroundPermissionDialog()
             } else {
-                startTracking()
+                startCountdown()
             }
         } else {
-            startTracking()
+            startCountdown()
         }
     }
 
@@ -130,7 +248,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
                 }
             }
             .setNegativeButton("그냥 시작") { _, _ ->
-                startTracking()
+                startCountdown()
             }
             .show()
     }
@@ -141,18 +259,21 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         if (!isGranted) {
             Toast.makeText(requireContext(), "백그라운드 위치 권한이 거부되었습니다.", Toast.LENGTH_SHORT).show()
         }
-        startTracking()
+        startCountdown()
     }
 
     private fun startTracking() {
         isTracking = true
-        binding.btnStartStop.text = "중지"
-        binding.btnStartStop.backgroundTintList = ColorStateList.valueOf(Color.RED)
+        binding.controllerLayout.visibility = View.VISIBLE
+        binding.btnStartStop.text = "일시정지"
+        binding.btnContainer.background.setTint(Color.parseColor("#EEEEEE")) // 일시정지 가능 상태색 (연한 회색)
         
         binding.headerLayout.visibility = View.GONE
         binding.tvGoalSetting.visibility = View.GONE
         binding.trackingStatsLayout.visibility = View.VISIBLE
         
+        viewModel.startTimer()
+
         val intent = Intent(requireContext(), TrackingService::class.java).apply {
             action = TrackingService.ACTION_START
         }
@@ -161,46 +282,79 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun stopTracking() {
         isTracking = false
+        isCooldown = true
+        lifecycleScope.launch {
+            delay(3000)
+            isCooldown = false
+        }
+
         binding.btnStartStop.text = "시작"
-        binding.btnStartStop.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#FFEB3B"))
+        binding.btnContainer.background.setTint(Color.parseColor("#0091EA")) // 바다색 블루
         
         binding.headerLayout.visibility = View.VISIBLE
         binding.tvGoalSetting.visibility = View.VISIBLE
         binding.trackingStatsLayout.visibility = View.GONE
         
+        val duration = viewModel.stopTimer()
+
         val intent = Intent(requireContext(), TrackingService::class.java).apply {
             action = TrackingService.ACTION_STOP
         }
         requireActivity().startService(intent)
         
-        viewModel.saveRun(0L) // 실제 타이머 로직 필요
+        viewModel.saveRun(duration)
         Toast.makeText(requireContext(), "러닝 기록이 저장되었습니다.", Toast.LENGTH_SHORT).show()
     }
 
     private fun observeViewModel() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isPaused.collectLatest { paused ->
+                if (isTracking) {
+                    binding.btnStartStop.text = if (paused) "재개" else "일시정지"
+                    binding.btnContainer.background.setTint(
+                        if (paused) Color.parseColor("#0091EA") else Color.parseColor("#EEEEEE")
+                    )
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.distance.collectLatest { distance ->
-                binding.tvDistance.text = String.format("%.2f", distance / 1000f)
+                _binding?.let {
+                    it.tvDistance.text = String.format(Locale.getDefault(), "%.2f", distance / 1000f)
+                }
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.currentPace.collectLatest { pace ->
-                binding.tvPace.text = pace
+                _binding?.let {
+                    it.tvPace.text = pace
+                }
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.elevationGain.collectLatest { elevation ->
-                binding.tvElevation.text = String.format("%.0fm", elevation)
+                _binding?.let {
+                    it.tvElevation.text = String.format(Locale.getDefault(), "%.0fm", elevation)
+                }
             }
         }
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.elapsedTime.collectLatest { time ->
+                _binding?.let {
+                    it.tvTimer.text = time
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
             viewModel.pathPoints.collectLatest { points ->
                 if (points.isNotEmpty()) {
                     val polylineOptions = PolylineOptions()
-                        .color(Color.parseColor("#CEFF00"))
+                        .color(Color.parseColor("#0091EA")) // 이동 경로도 바다색 블루로 통일
                         .width(12f)
                         .jointType(JointType.ROUND)
                         .addAll(points)

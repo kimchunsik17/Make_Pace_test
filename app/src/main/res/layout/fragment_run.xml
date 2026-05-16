@@ -28,6 +28,7 @@
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_centerVertical="true"
+                android:contentDescription="Camera"
                 android:src="@android:drawable/ic_menu_camera" />
             <TextView
                 android:layout_width="wrap_content"
@@ -42,6 +43,7 @@
                 android:layout_height="30dp"
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
+                android:contentDescription="Star"
                 android:src="@android:drawable/btn_star_big_off" />
         </RelativeLayout>
 
@@ -57,7 +59,7 @@
         </com.google.android.material.tabs.TabLayout>
     </LinearLayout>
 
-    <!-- 3. 러닝 중 표시되는 수치 영역 (초기 숨김) -->
+    <!-- 3. 러닝 중 표시되는 수치 영역 -->
     <LinearLayout
         android:id="@+id/trackingStatsLayout"
         android:layout_width="match_parent"
@@ -88,7 +90,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="30dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:baselineAligned="false">
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -169,31 +172,46 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="25dp"
             android:backgroundTint="#FFFFFF"
+            android:contentDescription="Settings"
             android:src="@android:drawable/ic_menu_manage"
             app:elevation="4dp"
             app:fabSize="normal"
-            app:layout_constraintBottom_toBottomOf="@id/btnStartStop"
-            app:layout_constraintEnd_toStartOf="@id/btnStartStop"
-            app:layout_constraintTop_toTopOf="@id/btnStartStop"
+            app:layout_constraintBottom_toBottomOf="@id/btnContainer"
+            app:layout_constraintEnd_toStartOf="@id/btnContainer"
+            app:layout_constraintTop_toTopOf="@id/btnContainer"
             app:tint="#000000" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStartStop"
+        <FrameLayout
+            android:id="@+id/btnContainer"
             android:layout_width="140dp"
             android:layout_height="140dp"
-            android:backgroundTint="#FFEB3B"
-            android:insetLeft="0dp"
-            android:insetTop="0dp"
-            android:insetRight="0dp"
-            android:insetBottom="0dp"
-            android:text="시작"
-            android:textColor="#000000"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            app:cornerRadius="70dp"
+            android:background="@drawable/bg_circle_blue"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintStart_toStartOf="parent">
+
+            <com.example.makepacetestver.ui.WaveLoadingView
+                android:id="@+id/waveView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStartStop"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:backgroundTint="@android:color/transparent"
+                android:insetLeft="0dp"
+                android:insetTop="0dp"
+                android:insetRight="0dp"
+                android:insetBottom="0dp"
+                android:text="시작"
+                android:textColor="#000000"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                app:cornerRadius="70dp"
+                app:elevation="0dp"
+                app:rippleColor="#20000000" />
+        </FrameLayout>
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btnMusic"
@@ -201,12 +219,13 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="25dp"
             android:backgroundTint="#FFFFFF"
+            android:contentDescription="Music"
             android:src="@android:drawable/ic_media_play"
             app:elevation="4dp"
             app:fabSize="normal"
-            app:layout_constraintBottom_toBottomOf="@id/btnStartStop"
-            app:layout_constraintStart_toEndOf="@id/btnStartStop"
-            app:layout_constraintTop_toTopOf="@id/btnStartStop"
+            app:layout_constraintBottom_toBottomOf="@id/btnContainer"
+            app:layout_constraintStart_toEndOf="@id/btnContainer"
+            app:layout_constraintTop_toTopOf="@id/btnContainer"
             app:tint="#000000" />
 
         <TextView
@@ -222,8 +241,20 @@
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnStartStop" />
+            app:layout_constraintTop_toBottomOf="@id/btnContainer" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- 카운트다운 텍스트 -->
+    <TextView
+        android:id="@+id/tvCountdown"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:elevation="10dp"
+        android:textColor="#0091EA"
+        android:textSize="180sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

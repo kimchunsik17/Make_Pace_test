@@ -18,16 +18,6 @@ class HomeFragment : Fragment() {
     }
 }
 
-class PlanFragment : Fragment() {
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        return TextView(context).apply {
-            text = "플랜 화면"
-            gravity = Gravity.CENTER
-            textSize = 24f
-        }
-    }
-}
-
 class ClubFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         return TextView(context).apply {

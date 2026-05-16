@@ -7,10 +7,10 @@ import com.example.makepacetestver.data.toTrackingPoint
 class LocationFilter {
     private var lastLocation: TrackingPoint? = null
     
-    // 최소 정확도 (meters)
-    private val MIN_ACCURACY = 20f
+    // 최소 정확도 (meters) - 에뮬레이터 대응을 위해 완화
+    private val MIN_ACCURACY = 50f
     // 비현실적인 이동 속도 필터링
-    private val MAX_SPEED_THRESHOLD = 12f 
+    private val MAX_SPEED_THRESHOLD = 20f
 
     fun filter(newLocation: Location): TrackingPoint? {
         if (newLocation.accuracy > MIN_ACCURACY) return null
