@@ -13,6 +13,7 @@ import com.example.makepacetestver.data.db.RunPointEntity
 import com.example.makepacetestver.service.TrackingService
 import com.example.makepacetestver.utils.VoiceCoachingManager
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
 import kotlinx.coroutines.Job
@@ -38,6 +39,9 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val _elapsedTime = MutableStateFlow("00:00:00")
     val elapsedTime = _elapsedTime.asStateFlow()
 
+    private val _isPaused = MutableStateFlow(false)
+    val isPaused = _isPaused.asStateFlow()
+
     private val _elevationGain = MutableStateFlow(0.0)
     val elevationGain = _elevationGain.asStateFlow()
 
@@ -49,6 +53,15 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private var lastLocation: Location? = null
     private var timerJob: Job? = null
     private var startTimeMillis = 0L
+
+    fun togglePause() {
+        _isPaused.value = !_isPaused.value
+        if (_isPaused.value) {
+            timerJob?.cancel()
+        } else {
+            startTimer()
+        }
+    }
 
     fun startTimer() {
         startTimeMillis = System.currentTimeMillis()
@@ -107,40 +120,26 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         }
     }
 
-    private val _isPaused = MutableStateFlow(false)
-    val isPaused = _isPaused.asStateFlow()
-
-    fun togglePause() {
-        _isPaused.value = !_isPaused.value
-        if (_isPaused.value) {
-            timerJob?.cancel()
-        } else {
-            startTimer() // Resume
-        }
-    }
-
     private fun calculateMetrics(newLocation: Location) {
         if (_isPaused.value) {
-            lastLocation = newLocation // 위치는 갱신하되 계산은 건너뜀
+            lastLocation = newLocation
             return
         }
         lastLocation?.let { last ->
             val distanceToLast = last.distanceTo(newLocation)
-            val timeDelta = (newLocation.time - last.time) / 1000f // seconds
+            val timeDelta = (newLocation.time - last.time) / 1000f
 
-            if (distanceToLast > 0.1 && timeDelta > 0) { // 아주 작은 움직임도 감지
+            if (distanceToLast > 0.1 && timeDelta > 0) {
                 _distance.value += distanceToLast
 
-                // 고도 계산
                 if (newLocation.hasAltitude() && last.hasAltitude()) {
                     val altDiff = newLocation.altitude - last.altitude
                     if (altDiff > 0) _elevationGain.value += altDiff
                 }
 
-                // 페이스 계산: 속도 데이터가 없으면 수동 계산 (거리 / 시간)
                 val speed = if (newLocation.speed > 0) newLocation.speed else (distanceToLast / timeDelta)
                 
-                if (speed > 0.1) { // 걷는 수준 이상의 움직임만 반영
+                if (speed > 0.1) {
                     currentPaceInSeconds = (1000 / speed).toInt()
                     val paceMinutes = currentPaceInSeconds / 60
                     val paceSeconds = currentPaceInSeconds % 60
@@ -183,8 +182,43 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
             }
             runDao.insertRunPoints(runPoints)
             
-            // Firebase Sync (JSON 파일 추가 후 아래 주석 해제)
-            // syncToFirebase(runEntity, runPoints)
+            syncToFirebase(runEntity, runPoints)
+        }
+    }
+
+    private fun syncToFirebase(run: RunEntity, points: List<RunPointEntity>) {
+        val user = FirebaseAuth.getInstance().currentUser ?: return
+        val db = FirebaseFirestore.getInstance()
+        
+        db.collection("users").document(user.uid).get().addOnSuccessListener { userDoc ->
+            val researchId = userDoc.getString("researchId") ?: return@addOnSuccessListener
+            
+            val runData = hashMapOf(
+                "researchId" to researchId,
+                "timestamp" to run.timestamp,
+                "avgPace" to run.avgPace,
+                "distanceMeter" to run.distanceMeter,
+                "durationMillis" to run.durationMillis,
+                "elevationGain" to run.elevationGain
+            )
+
+            db.collection("research_data").document(researchId)
+                .collection("runs").add(runData)
+                .addOnSuccessListener { documentReference ->
+                    val pointsBatch = db.batch()
+                    points.forEach { point ->
+                        val pointData = hashMapOf(
+                            "timestamp" to point.timestamp,
+                            "lat" to point.latitude,
+                            "lng" to point.longitude,
+                            "alt" to point.altitude,
+                            "speed" to point.instantaneousSpeed
+                        )
+                        val pointRef = documentReference.collection("points").document()
+                        pointsBatch.set(pointRef, pointData)
+                    }
+                    pointsBatch.commit()
+                }
         }
     }
 
