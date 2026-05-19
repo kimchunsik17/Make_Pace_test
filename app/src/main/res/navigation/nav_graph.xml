@@ -34,4 +34,9 @@
         android:id="@+id/runDetailFragment"
         android:name="com.example.makepacetestver.ui.RunDetailFragment"
         android:label="Run Detail" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.example.makepacetestver.ui.SettingsFragment"
+        android:label="Settings" />
 </navigation>

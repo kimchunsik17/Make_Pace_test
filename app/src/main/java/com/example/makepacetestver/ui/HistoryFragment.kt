@@ -42,6 +42,10 @@ class HistoryFragment : Fragment() {
         binding.rvHistory.layoutManager = LinearLayoutManager(requireContext())
         binding.rvHistory.adapter = adapter
 
+        binding.btnSettings.setOnClickListener {
+            findNavController().navigate(R.id.settingsFragment)
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             runDao.getAllRuns().collectLatest { runs ->
                 adapter.submitList(runs)

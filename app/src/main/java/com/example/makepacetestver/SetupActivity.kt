@@ -29,8 +29,13 @@ class SetupActivity : AppCompatActivity() {
         val age = binding.etAge.text.toString().toIntOrNull() ?: 0
         val height = binding.etHeight.text.toString().toFloatOrNull() ?: 0f
         val weight = binding.etWeight.text.toString().toFloatOrNull() ?: 0f
+        val gender = when (binding.rgGender.checkedRadioButtonId) {
+            R.id.rbMale -> "male"
+            R.id.rbFemale -> "female"
+            else -> ""
+        }
 
-        if (age == 0 || height == 0f || weight == 0f) {
+        if (age == 0 || height == 0f || weight == 0f || gender.isEmpty()) {
             Toast.makeText(this, "모든 정보를 올바르게 입력해주세요.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -46,7 +51,7 @@ class SetupActivity : AppCompatActivity() {
                         "age" to age,
                         "height" to height,
                         "weight" to weight,
-                        "gender" to "unspecified" // 추후 성별 선택 추가 가능
+                        "gender" to gender
                     )
                     
                     db.collection("research_data").document(researchId).set(researchData)

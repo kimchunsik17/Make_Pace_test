@@ -166,21 +166,6 @@
         android:layout_gravity="bottom"
         android:paddingBottom="40dp">
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btnSettings"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="25dp"
-            android:backgroundTint="#FFFFFF"
-            android:contentDescription="Settings"
-            android:src="@android:drawable/ic_menu_manage"
-            app:elevation="4dp"
-            app:fabSize="normal"
-            app:layout_constraintBottom_toBottomOf="@id/btnContainer"
-            app:layout_constraintEnd_toStartOf="@id/btnContainer"
-            app:layout_constraintTop_toTopOf="@id/btnContainer"
-            app:tint="#000000" />
-
         <FrameLayout
             android:id="@+id/btnContainer"
             android:layout_width="140dp"

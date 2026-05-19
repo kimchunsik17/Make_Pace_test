@@ -20,9 +20,12 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import com.example.makepacetestver.R
 import com.example.makepacetestver.data.db.AppDatabase
 import com.example.makepacetestver.databinding.FragmentRunBinding
 import com.example.makepacetestver.service.TrackingService
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -372,6 +375,20 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) 
             == PackageManager.PERMISSION_GRANTED) {
             map?.isMyLocationEnabled = true
+            zoomToCurrentLocation()
+        }
+    }
+
+    private fun zoomToCurrentLocation() {
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) 
+            != PackageManager.PERMISSION_GRANTED) return
+
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            location?.let {
+                val latLng = com.google.android.gms.maps.model.LatLng(it.latitude, it.longitude)
+                map?.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16f))
+            }
         }
     }
 
