@@ -18,7 +18,8 @@ class VoiceCoachingManager(context: Context) : TextToSpeech.OnInitListener {
 
     fun speak(text: String) {
         if (isReady) {
-            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null)
+            // QUEUE_ADD를 사용하여 이전 음성이 끝나면 이어서 나오도록 설정 (큐잉)
+            tts.speak(text, TextToSpeech.QUEUE_ADD, null, null)
         }
     }
 
@@ -29,7 +30,7 @@ class VoiceCoachingManager(context: Context) : TextToSpeech.OnInitListener {
         when {
             diff > threshold -> speak("페이스를 높이세요. 조금 더 빠르게 달려야 합니다.")
             diff < -threshold -> speak("페이스를 낮추세요. 너무 빠르게 달리고 있습니다.")
-            else -> speak("좋습니다. 현재 페이스를 잘 유지하세요.")
+            // 적정 범위 내에 있을 때는 아무 말도 하지 않음 (사용자 요청 반영)
         }
     }
 

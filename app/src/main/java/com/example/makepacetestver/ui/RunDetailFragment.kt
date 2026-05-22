@@ -98,7 +98,7 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
                 actualEntries.add(Entry(index.toFloat(), actualPace))
             }
 
-            // AI 예측 페이스
+            // 적정 페이스 (블렌딩된 예측값)
             point.predictedPace?.let { predicted ->
                 predictedEntries.add(Entry(index.toFloat(), predicted))
             }

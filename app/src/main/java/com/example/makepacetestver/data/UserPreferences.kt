@@ -23,6 +23,12 @@ class UserPreferences(context: Context) {
     fun getWeight(): Float = prefs.getFloat("weight", 0f)
     fun getGender(): String = prefs.getString("gender", "unspecified") ?: "unspecified"
 
+    fun saveLastStrategyId(strategyId: String) {
+        prefs.edit().putString("last_strategy_id", strategyId).apply()
+    }
+
+    fun getLastStrategyId(): String? = prefs.getString("last_strategy_id", null)
+
     fun clear() {
         prefs.edit().clear().apply()
     }

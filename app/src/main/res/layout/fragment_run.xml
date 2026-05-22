@@ -57,8 +57,8 @@
             app:tabIndicatorColor="@color/sea_blue"
             app:tabSelectedTextColor="@color/sea_blue"
             app:tabTextColor="@color/text_secondary">
-            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="바로 시작" />
-            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="러닝 가이드" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Just Running" />
+            <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Planned Running" />
         </com.google.android.material.tabs.TabLayout>
     </LinearLayout>
 

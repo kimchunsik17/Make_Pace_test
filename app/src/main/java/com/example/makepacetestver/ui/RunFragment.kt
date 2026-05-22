@@ -89,6 +89,18 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.mapView.onCreate(savedInstanceState)
         binding.mapView.getMapAsync(this)
 
+        // 탭 레이아웃 설정
+        binding.tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> viewModel.setPlannedRunning(false) // Just Running
+                    1 -> viewModel.setPlannedRunning(true)  // Planned Running
+                }
+            }
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+        })
+
         // 머신러닝 예측기 및 보이스 매니저 초기화
         viewModel.initVoiceManager(requireContext())
         viewModel.initPredictor(requireContext())
@@ -159,6 +171,9 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun startCountdown() {
+        viewModel.resetRunData()
+        map?.clear()
+
         isCountingDown = true
         clickCountDuringCountdown = 0
         binding.tvCountdown.visibility = View.VISIBLE
@@ -272,6 +287,18 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun startTracking() {
         isTracking = true
+        viewModel.setTrackingActive(true)
+        
+        // 현재 선택된 탭에 따라 플랜 모드 설정
+        val isPlanned = binding.tabLayout.selectedTabPosition == 1
+        viewModel.setPlannedRunning(isPlanned)
+        
+        if (isPlanned) {
+            viewModel.speakImmediate("러닝 가이드를 시작합니다. 페이스에 맞춰 달려주세요.")
+        } else {
+            viewModel.speakImmediate("자유 러닝을 시작합니다.")
+        }
+
         (requireActivity() as? MainActivity)?.setBottomNavVisibility(false)
         binding.controllerLayout.visibility = View.VISIBLE
         binding.btnStartStop.text = "PAUSE"
@@ -291,6 +318,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun stopTracking() {
         isTracking = false
+        viewModel.setTrackingActive(false)
         (requireActivity() as? MainActivity)?.setBottomNavVisibility(true)
         isCooldown = true
         lifecycleScope.launch {
@@ -369,7 +397,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.predictedPace.collectLatest { pace ->
+            viewModel.appropriatePace.collectLatest { pace ->
                 _binding?.let {
                     if (pace != null) {
                         val minutes = pace.toInt()

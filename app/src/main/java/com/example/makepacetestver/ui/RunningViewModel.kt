@@ -5,6 +5,7 @@ import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.makepacetestver.data.PaceStrategy
+import com.example.makepacetestver.data.StrategyProvider
 import com.example.makepacetestver.data.TrackingPoint
 import com.example.makepacetestver.data.UserPreferences
 import com.example.makepacetestver.data.toTrackingPoint
@@ -34,6 +35,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private var selectedStrategy: PaceStrategy? = null
     private var targetPaceSeconds: Int = 0
     private var currentPaceInSeconds: Int = 0
+    private var isPlannedRunning: Boolean = true
+    private var isTrackingActive: Boolean = false // 실제 추적 상태 추가
 
     // User Profile for ML
     private var userAge = 30f
@@ -49,8 +52,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val _averagePace = MutableStateFlow("0'00")
     val averagePace = _averagePace.asStateFlow()
 
-    private val _predictedPace = MutableStateFlow<Float?>(null)
-    val predictedPace = _predictedPace.asStateFlow()
+    private val _appropriatePace = MutableStateFlow<Float?>(null)
+    val appropriatePace = _appropriatePace.asStateFlow()
 
     private val _elapsedTime = MutableStateFlow("00:00:00")
     val elapsedTime = _elapsedTime.asStateFlow()
@@ -69,6 +72,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private var lastLocation: Location? = null
     private var timerJob: Job? = null
     private var startTimeMillis = 0L
+    private var lastDistanceMilestone = 0 // km 단위
+    private val reachedPercentMilestones = mutableSetOf<Int>() // 25, 50, 75, 100
 
     fun togglePause() {
         _isPaused.value = !_isPaused.value
@@ -77,6 +82,22 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         } else {
             startTimer()
         }
+    }
+
+    fun resetRunData() {
+        _distance.value = 0f
+        _currentPace.value = "--'--"
+        _averagePace.value = "0'00"
+        _appropriatePace.value = null
+        _elapsedTime.value = "00:00:00"
+        _elevationGain.value = 0.0
+        _pathPoints.value = emptyList()
+        _pathPointsWithDetails.value = emptyList()
+        lastLocation = null
+        startTimeMillis = 0L
+        currentPaceInSeconds = 0
+        lastDistanceMilestone = 0
+        reachedPercentMilestones.clear()
     }
 
     fun startTimer() {
@@ -105,19 +126,35 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         }
     }
 
+    fun speakImmediate(text: String) {
+        voiceManager?.speak(text)
+    }
+
     fun initPredictor(context: Context) {
         if (predictor == null) {
             predictor = RunningCoachPredictor(context)
             userPrefs = UserPreferences(context)
             loadProfileFromCache() // 캐시된 프로필 먼저 로드
             fetchUserProfileForML() // 가능하면 최신화
+            
+            // 마지막 전략 로드
+            if (selectedStrategy == null) {
+                userPrefs?.getLastStrategyId()?.let { lastId ->
+                    StrategyProvider.strategies.find { it.id == lastId }?.let {
+                        selectedStrategy = it
+                    }
+                }
+            }
+
+            // 프로필 로드 후 전략이 이미 선택되어 있다면 타겟 페이스 재계산
+            selectedStrategy?.let { calculateDynamicTargetPace(it) }
         }
     }
 
     private fun loadProfileFromCache() {
         userPrefs?.let {
             userAge = it.getAge().toFloat()
-            userWeight = it.getWeight().toFloat()
+            userWeight = it.getWeight()
             userGender = if (it.getGender() == "male") 1f else 0f
         }
     }
@@ -131,13 +168,47 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                 userAge = researchDoc.getLong("age")?.toFloat() ?: 30f
                 userWeight = researchDoc.getDouble("weight")?.toFloat() ?: 70f
                 userGender = if (researchDoc.getString("gender") == "male") 1f else 0f
+                
+                // 최신 데이터 로드 후 재계산
+                selectedStrategy?.let { calculateDynamicTargetPace(it) }
             }
         }
     }
 
     fun setStrategy(strategy: PaceStrategy) {
         this.selectedStrategy = strategy
-        this.targetPaceSeconds = strategy.basePaceMinutes * 60
+        this.isPlannedRunning = true
+        userPrefs?.saveLastStrategyId(strategy.id)
+        calculateDynamicTargetPace(strategy)
+    }
+
+    fun setPlannedRunning(enabled: Boolean) {
+        this.isPlannedRunning = enabled
+        if (enabled && selectedStrategy != null) {
+            calculateDynamicTargetPace(selectedStrategy!!)
+        }
+    }
+
+    fun setTrackingActive(active: Boolean) {
+        this.isTrackingActive = active
+    }
+
+    private fun calculateDynamicTargetPace(strategy: PaceStrategy) {
+        var baseSeconds = strategy.basePaceMinutes * 60
+        
+        // 유저 프로필 기반 동적 보정 (더 정교하게)
+        // 1. 나이: 30세 기준, 1세당 1.5초 보정 (고연령일수록 여유있게)
+        baseSeconds += ((userAge - 30) * 1.5f).toInt()
+        
+        // 2. 체중: 70kg 기준, 1kg당 2.5초 보정
+        baseSeconds += ((userWeight - 70) * 2.5f).toInt()
+        
+        // 3. 성별: 여성(0) 기준, 남성(1)은 40초 빠르게
+        if (userGender == 1f) {
+            baseSeconds -= 40
+        }
+
+        this.targetPaceSeconds = baseSeconds.coerceIn(240, 1200)
     }
 
     init {
@@ -156,25 +227,20 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
             while (true) {
                 delay(30000) // 30초마다 체크
                 
-                // AI 적정 페이스가 계산되었는지 확인
-                val aiPaceMinKm = _predictedPace.value
-                
-                if (aiPaceMinKm != null && currentPaceInSeconds > 0) {
-                    // AI가 계산한 적정 페이스(초/km)
-                    val aiTargetSeconds = (aiPaceMinKm * 60).toInt()
-                    
-                    // 전략 이름은 말하지 않고 오직 페이스 조절만 가이드
+                // 추적 중이 아니거나, 일시정지 상태거나, 가이드 모드가 아니면 건너뜀
+                if (!isTrackingActive || _isPaused.value || !isPlannedRunning) continue
+
+                val currentTargetSec = if (_appropriatePace.value != null) {
+                    (_appropriatePace.value!! * 60).toInt()
+                } else {
+                    targetPaceSeconds
+                }
+
+                if (currentPaceInSeconds > 0) {
                     voiceManager?.coachPace(
                         currentPaceInSeconds,
-                        aiTargetSeconds,
-                        0.05f // AI 코칭은 더 정밀하게 (5% 허용 오차)
-                    )
-                } else if (selectedStrategy != null && currentPaceInSeconds > 0) {
-                    // AI 데이터가 아직 없을 때만 기본 전략 페이스로 가이드
-                    voiceManager?.coachPace(
-                        currentPaceInSeconds,
-                        targetPaceSeconds,
-                        selectedStrategy!!.tolerancePercentage
+                        currentTargetSec,
+                        0.05f
                     )
                 }
             }
@@ -190,15 +256,25 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
             val distanceToLast = last.distanceTo(newLocation)
             val timeDelta = (newLocation.time - last.time) / 1000f
 
-            if (distanceToLast > 0.1 && timeDelta > 0) {
+            if (distanceToLast > 0 && timeDelta > 0) {
                 _distance.value += distanceToLast
                 
                 // 1. 현재 페이스 계산 (속도 기반, 필터링 적용)
                 val speed = if (newLocation.speed > 0) newLocation.speed else (distanceToLast / timeDelta)
-                if (speed > 0.5) { // 걷는 속도 이상일 때만 페이스 업데이트
-                    val currentPaceSec = (1000 / speed).toInt()
-                    _currentPace.value = String.format(Locale.getDefault(), "%d'%02d", currentPaceSec / 60, currentPaceSec % 60)
+                
+                // 속도 보정: 0.5m/s(시속 1.8km) 이하이면 멈춘 것으로 간주
+                if (speed > 0.5) { 
+                    val paceSec = (1000 / speed).toInt()
+                    // 현실적인 페이스 범위 설정 (2분/km ~ 15분/km)
+                    if (paceSec in 120..900) {
+                        currentPaceInSeconds = paceSec
+                        _currentPace.value = String.format(Locale.getDefault(), "%d'%02d", currentPaceInSeconds / 60, currentPaceInSeconds % 60)
+                    } else if (paceSec > 900) {
+                        _currentPace.value = "--'--"
+                        currentPaceInSeconds = 0
+                    }
                 } else {
+                    currentPaceInSeconds = 0
                     _currentPace.value = "--'--"
                 }
 
@@ -209,24 +285,44 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                     if (avgPaceSec < 1500) { // 비현실적인 페이스 방지
                         _averagePace.value = String.format(Locale.getDefault(), "%d'%02d", avgPaceSec / 60, avgPaceSec % 60)
                     }
+
+                    // 1km 마다 브리핑 (사용자 요청 반영)
+                    val currentKmInt = (_distance.value / 1000).toInt()
+                    if (currentKmInt > lastDistanceMilestone) {
+                        lastDistanceMilestone = currentKmInt
+                        val briefText = "현재 ${currentKmInt} 킬로미터 지점입니다. 평균 페이스는 ${_averagePace.value} 입니다."
+                        speakImmediate(briefText)
+                    }
+
+                    // 목표 거리 기반 구간 브리핑
+                    checkDistanceMilestones()
                 }
 
-                if (newLocation.hasAltitude() && last.hasAltitude()) {
+                val grade = if (newLocation.hasAltitude() && last.hasAltitude()) {
                     val altDiff = newLocation.altitude - last.altitude
                     if (altDiff > 0) _elevationGain.value += altDiff
-                    
-                    val grade = (altDiff / distanceToLast).toFloat()
-                    val currentPaceMinKm = if (speed > 0.1) (1000f / speed) / 60f else 0f
+                    (altDiff / distanceToLast).toFloat()
+                } else {
+                    0f
+                }
+                
+                val currentPaceMinKm = if (speed > 0.1) (1000f / speed) / 60f else 0f
 
-                    if (currentPaceMinKm > 0) {
-                        val predicted = predictor?.predictNextPace(
-                            currentPace = currentPaceMinKm,
-                            currentGrade = grade,
-                            age = userAge,
-                            gender = userGender,
-                            weight = userWeight
-                        )
-                        _predictedPace.value = predicted
+                if (currentPaceMinKm > 0) {
+                    val predictedRaw = predictor?.predictNextPace(
+                        currentPace = currentPaceMinKm,
+                        currentGrade = grade,
+                        age = userAge,
+                        gender = userGender,
+                        weight = userWeight
+                    )
+
+                    // [핵심] 적정 페이스 블렌딩 로직
+                    if (predictedRaw != null && targetPaceSeconds > 0) {
+                        val strategyTargetMinKm = targetPaceSeconds / 60f
+                        // AI 비중을 40%로 상향하여 더 역동적인 변화 유도
+                        val blendedPace = (predictedRaw * 0.4f) + (strategyTargetMinKm * 0.6f)
+                        _appropriatePace.value = blendedPace
                     }
                 }
             }
@@ -235,11 +331,47 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     }
 
     private fun updatePath(location: Location) {
-        val trackingPoint = location.toTrackingPoint(_predictedPace.value)
+        val trackingPoint = location.toTrackingPoint(_appropriatePace.value)
         _pathPointsWithDetails.value = _pathPointsWithDetails.value + trackingPoint
         
         val newLatLng = LatLng(location.latitude, location.longitude)
         _pathPoints.value = _pathPoints.value + newLatLng
+    }
+
+    private fun checkDistanceMilestones() {
+        val targetKm = selectedStrategy?.customTargetDistanceKm ?: 0f
+        if (targetKm <= 0) return
+
+        val currentKm = _distance.value / 1000f
+        val percent = ((currentKm / targetKm) * 100).toInt()
+
+        if (targetKm <= 3.0f) {
+            // 3km 이하: 절반(50%), 도착(100%)
+            if (percent >= 50 && !reachedPercentMilestones.contains(50)) {
+                reachedPercentMilestones.add(50)
+                val text = "목표 거리의 절반인 ${String.format(Locale.getDefault(), "%.1f", currentKm)} 킬로미터를 달렸습니다."
+                speakImmediate(text)
+            } else if (percent >= 100 && !reachedPercentMilestones.contains(100)) {
+                reachedPercentMilestones.add(100)
+                speakImmediate("목표 거리에 도달했습니다! 정말 대단해요.")
+            }
+        } else {
+            // 3km 초과: 25% 구간마다
+            val milestones = listOf(25, 50, 75, 100)
+            for (m in milestones) {
+                if (percent >= m && !reachedPercentMilestones.contains(m)) {
+                    reachedPercentMilestones.add(m)
+                    if (m == 100) {
+                        speakImmediate("목표 거리에 도달했습니다! 완주를 축하합니다.")
+                    } else {
+                        val remaining = targetKm - currentKm
+                        val text = "전체 코스의 $m 퍼센트를 완료했습니다. 남은 거리는 ${String.format(Locale.getDefault(), "%.1f", remaining)} 킬로미터입니다."
+                        speakImmediate(text)
+                    }
+                    break
+                }
+            }
+        }
     }
 
     fun saveRun(durationMillis: Long) {

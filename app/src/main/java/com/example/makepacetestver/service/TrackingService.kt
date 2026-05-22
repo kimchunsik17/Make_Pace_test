@@ -68,7 +68,7 @@ class TrackingService : Service() {
     }
 
     private fun requestLocationUpdates() {
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000L)
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
             .setMinUpdateIntervalMillis(1000L)
             .build()
 
