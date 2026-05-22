@@ -27,8 +27,9 @@ class VoiceCoachingManager(context: Context) : TextToSpeech.OnInitListener {
         val threshold = targetPaceSeconds * tolerance
 
         when {
-            diff > threshold -> speak("페이스가 너무 쳐지고 있습니다. 조금 더 힘내세요!")
-            diff < -threshold -> speak("너무 빠릅니다. 페이스를 늦춰서 안정적으로 달리세요.")
+            diff > threshold -> speak("페이스를 높이세요. 조금 더 빠르게 달려야 합니다.")
+            diff < -threshold -> speak("페이스를 낮추세요. 너무 빠르게 달리고 있습니다.")
+            else -> speak("좋습니다. 현재 페이스를 잘 유지하세요.")
         }
     }
 

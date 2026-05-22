@@ -180,7 +180,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="* 파란색: 실제 페이스, 점선: AI 예측 페이스"
+                android:text="* 파란색: 실제 페이스, 점선: 적정 페이스"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
 

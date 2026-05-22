@@ -111,7 +111,7 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
             mode = LineDataSet.Mode.CUBIC_BEZIER
         }
 
-        val predictedDataSet = LineDataSet(predictedEntries, "AI Predicted").apply {
+        val predictedDataSet = LineDataSet(predictedEntries, "Appropriate Pace").apply {
             color = Color.parseColor("#80FFFFFF") // Semi-transparent white
             setDrawCircles(false)
             lineWidth = 2f

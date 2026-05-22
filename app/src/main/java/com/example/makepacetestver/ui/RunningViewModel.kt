@@ -155,18 +155,25 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         viewModelScope.launch {
             while (true) {
                 delay(30000) // 30초마다 체크
-                if (selectedStrategy != null && currentPaceInSeconds > 0) {
-                    // 1. 머신러닝 예측값이 있으면 이를 바탕으로 타겟 페이스 보정 (선택 사항)
-                    val coachingTarget = if (_predictedPace.value != null) {
-                        // 예측된 페이스를 70%, 전략 페이스를 30% 비율로 섞어 동적 타겟 생성 예시
-                        ((_predictedPace.value!! * 60 * 0.7) + (targetPaceSeconds * 0.3)).toInt()
-                    } else {
-                        targetPaceSeconds
-                    }
-
+                
+                // AI 적정 페이스가 계산되었는지 확인
+                val aiPaceMinKm = _predictedPace.value
+                
+                if (aiPaceMinKm != null && currentPaceInSeconds > 0) {
+                    // AI가 계산한 적정 페이스(초/km)
+                    val aiTargetSeconds = (aiPaceMinKm * 60).toInt()
+                    
+                    // 전략 이름은 말하지 않고 오직 페이스 조절만 가이드
                     voiceManager?.coachPace(
                         currentPaceInSeconds,
-                        coachingTarget,
+                        aiTargetSeconds,
+                        0.05f // AI 코칭은 더 정밀하게 (5% 허용 오차)
+                    )
+                } else if (selectedStrategy != null && currentPaceInSeconds > 0) {
+                    // AI 데이터가 아직 없을 때만 기본 전략 페이스로 가이드
+                    voiceManager?.coachPace(
+                        currentPaceInSeconds,
+                        targetPaceSeconds,
                         selectedStrategy!!.tolerancePercentage
                     )
                 }
