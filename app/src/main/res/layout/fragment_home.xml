@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="@color/dark_background">
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/homeScrollView"
@@ -24,7 +24,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="홈"
-                    android:textColor="#000000"
+                    android:textColor="@color/text_primary"
                     android:textSize="28sp"
                     android:textStyle="bold" />
 
@@ -41,8 +41,9 @@
                         android:id="@+id/ivWeatherIcon"
                         android:layout_width="32dp"
                         android:layout_height="32dp"
+                        android:contentDescription="Weather"
                         android:src="@android:drawable/ic_menu_report_image"
-                        app:tint="#0091EA" />
+                        app:tint="@color/sea_blue" />
 
                     <TextView
                         android:id="@+id/tvTemperature"
@@ -50,7 +51,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
                         android:text="--°C"
-                        android:textColor="#000000"
+                        android:textColor="@color/text_primary"
                         android:textSize="18sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -63,7 +64,7 @@
                 android:layout_marginTop="24dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
-                app:cardBackgroundColor="#F5F5F5">
+                app:cardBackgroundColor="@color/dark_surface">
 
                 <RelativeLayout
                     android:layout_width="match_parent"
@@ -81,7 +82,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="이번 주 활동"
-                            android:textColor="#ADADAD"
+                            android:textColor="@color/text_secondary"
                             android:textSize="14sp" />
 
                         <TextView
@@ -90,7 +91,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:text="0.00 km"
-                            android:textColor="#0091EA"
+                            android:textColor="@color/sea_blue"
                             android:textSize="36sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -109,7 +110,7 @@
                             android:minWidth="0dp"
                             android:paddingHorizontal="8dp"
                             android:text="월간"
-                            android:textColor="#0091EA"
+                            android:textColor="@color/sea_blue_light"
                             android:textSize="12sp" />
 
                         <com.google.android.material.button.MaterialButton
@@ -120,7 +121,7 @@
                             android:minWidth="0dp"
                             android:paddingHorizontal="8dp"
                             android:text="연간"
-                            android:textColor="#0091EA"
+                            android:textColor="@color/sea_blue_light"
                             android:textSize="12sp" />
                     </LinearLayout>
 
@@ -131,7 +132,7 @@
                         android:layout_below="@+id/summaryTextLayout"
                         android:layout_marginTop="12dp"
                         android:text="지난주 기록을 불러오는 중..."
-                        android:textColor="#000000"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp" />
                 </RelativeLayout>
             </androidx.cardview.widget.CardView>
@@ -141,8 +142,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="32dp"
-                android:text="오늘의 러닝 팁 (스와이프)"
-                android:textColor="#000000"
+                android:text="오늘의 러닝 팁"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -152,7 +153,7 @@
                 android:layout_marginTop="16dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
-                app:cardBackgroundColor="#0091EA">
+                app:cardBackgroundColor="@color/sea_blue_dark">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -165,7 +166,7 @@
                         android:layout_height="28dp"
                         android:contentDescription="Tip Icon"
                         android:src="@android:drawable/ic_dialog_info"
-                        app:tint="#FFFFFF" />
+                        app:tint="@color/white" />
 
                     <androidx.viewpager2.widget.ViewPager2
                         android:id="@+id/vpTips"
@@ -178,16 +179,16 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- 캘린더 분석 오버레이 (동일 유지) -->
+    <!-- 4. 캘린더 분석 오버레이 -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/calendarOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#FFFFFF"
+        android:background="@color/dark_background"
         android:visibility="gone"
         android:clickable="true"
         android:focusable="true">
-        <!-- ... 기존 내용 동일 ... -->
+
         <ImageButton
             android:id="@+id/btnCloseCalendar"
             android:layout_width="48dp"
@@ -198,7 +199,7 @@
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="#000000" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:id="@+id/tvCalendarTitle"
@@ -206,7 +207,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="활동 분석"
-            android:textColor="#000000"
+            android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
@@ -218,22 +219,21 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark"
             app:layout_constraintTop_toBottomOf="@id/tvCalendarTitle" />
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
             android:layout_margin="20dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
-            app:cardBackgroundColor="#F5F5F5"
-            app:layout_constraintTop_toBottomOf="@id/calendarView"
-            app:layout_constraintBottom_toBottomOf="parent">
+            app:cardBackgroundColor="@color/dark_surface"
+            app:layout_constraintTop_toBottomOf="@id/calendarView">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
                 android:gravity="center"
                 android:orientation="vertical"
                 android:padding="20dp">
@@ -243,7 +243,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="날짜를 선택하세요"
-                    android:textColor="#000000"
+                    android:textColor="@color/text_primary"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -253,7 +253,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="0.00 km"
-                    android:textColor="#0091EA"
+                    android:textColor="@color/sea_blue"
                     android:textSize="32sp"
                     android:textStyle="bold" />
 
@@ -263,9 +263,11 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="해당 날짜의 활동 기록이 없습니다."
-                    android:textColor="#ADADAD"
+                    android:textColor="@color/text_secondary"
                     android:textSize="14sp" />
             </LinearLayout>
         </androidx.cardview.widget.CardView>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
+
 </FrameLayout>

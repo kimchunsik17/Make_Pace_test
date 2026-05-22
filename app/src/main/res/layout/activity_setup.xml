@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="@color/dark_background"
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:padding="30dp">
@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="50dp"
         android:text="맞춤 코칭을 위한\n기초 정보 입력"
-        android:textColor="#000000"
+        android:textColor="@color/text_primary"
         android:textSize="26sp"
         android:textStyle="bold"
         android:gravity="center" />
@@ -23,19 +23,22 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="정보는 익명으로 안전하게 처리됩니다."
-        android:textColor="#ADADAD"
+        android:textColor="@color/text_secondary"
         android:textSize="14sp" />
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
+        android:textColorHint="@color/text_hint"
+        app:hintTextColor="@color/sea_blue"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etAge"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="나이"
+            android:textColor="@color/text_primary"
             android:inputType="number" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -45,7 +48,7 @@
         android:layout_marginTop="16dp"
         android:layout_gravity="start"
         android:text="성별"
-        android:textColor="#000000"
+        android:textColor="@color/text_primary"
         android:textSize="14sp" />
 
     <RadioGroup
@@ -59,25 +62,32 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="남성" />
+            android:text="남성"
+            android:textColor="@color/text_primary"
+            android:buttonTint="@color/sea_blue" />
         <RadioButton
             android:id="@+id/rbFemale"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="여성" />
+            android:text="여성"
+            android:textColor="@color/text_primary"
+            android:buttonTint="@color/sea_blue" />
     </RadioGroup>
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:textColorHint="@color/text_hint"
+        app:hintTextColor="@color/sea_blue"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etHeight"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="키 (cm)"
+            android:textColor="@color/text_primary"
             android:inputType="numberDecimal" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -85,12 +95,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:textColorHint="@color/text_hint"
+        app:hintTextColor="@color/sea_blue"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etWeight"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="몸무게 (kg)"
+            android:textColor="@color/text_primary"
             android:inputType="numberDecimal" />
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -99,9 +112,9 @@
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:layout_marginTop="40dp"
-        android:backgroundTint="#0091EA"
+        android:backgroundTint="@color/sea_blue"
         android:text="완료"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/white"
         android:textSize="18sp"
         android:textStyle="bold"
         app:cornerRadius="12dp" />

@@ -2,71 +2,118 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="220dp"
+    android:layout_height="wrap_content"
     android:layout_marginHorizontal="20dp"
     android:layout_marginVertical="10dp"
     app:cardCornerRadius="16dp"
-    app:cardElevation="4dp">
+    app:cardElevation="0dp">
 
-    <RelativeLayout
+    <LinearLayout
         android:id="@+id/layoutBackground"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:padding="24dp">
 
         <TextView
             android:id="@+id/tvStrategyTitle"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="리커버리 런"
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
+            android:text="전략 제목"
+            android:textColor="@color/white"
+            android:textSize="22sp"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tvPaceDesc"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/tvStrategyTitle"
-            android:layout_marginTop="8dp"
-            android:text="가장 편안한 페이스"
-            android:textColor="#E0E0E0"
-            android:textSize="16sp" />
-
-        <LinearLayout
+            android:id="@+id/tvShortTarget"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:orientation="vertical">
+            android:layout_marginTop="8dp"
+            android:text="추천 대상 : (내용)"
+            android:textColor="#CCFFFFFF"
+            android:textSize="14sp" />
+
+        <!-- 확장 영역 -->
+        <LinearLayout
+            android:id="@+id/layoutExpanded"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
 
             <TextView
-                android:id="@+id/tvEffect"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="효과: 지구력 증진"
-                android:textColor="#FFFFFF"
-                android:textSize="14sp"
+                android:layout_marginTop="20dp"
+                android:text="페이스 가이드"
+                android:textColor="#AAFFFFFF"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/tvTarget"
-                android:layout_width="wrap_content"
+                android:id="@+id/tvPaceDesc"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="대상: 모든 러너"
-                android:textColor="#E0E0E0"
-                android:textSize="12sp" />
+                android:text="페이스 설명"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="운동 효과"
+                android:textColor="#AAFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvEffect"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="효과 설명"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:lineSpacingExtra="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="목표 거리 설정 (km)"
+                android:textColor="#AAFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/etTargetDistance"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_white_capsule"
+                android:backgroundTint="#20000000"
+                android:hint="예: 5.0"
+                android:inputType="numberDecimal"
+                android:paddingHorizontal="20dp"
+                android:textColor="@color/white"
+                android:textColorHint="#99FFFFFF" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSelect"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="20dp"
+                android:backgroundTint="@color/white"
+                android:text="SELECT"
+                android:textColor="@color/black"
+                android:textStyle="bold"
+                app:cornerRadius="12dp"
+                app:elevation="0dp" />
+
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSelect"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:text="선택하기"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold" />
-    </RelativeLayout>
+    </LinearLayout>
 </androidx.cardview.widget.CardView>

@@ -2,4 +2,17 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Dark Mode Palette -->
+    <color name="dark_background">#121212</color>
+    <color name="dark_surface">#1E1E1E</color>
+    <color name="sea_blue">#0091EA</color>
+    <color name="sea_blue_light">#81D4FA</color>
+    <color name="sea_blue_dark">#01579B</color>
+
+    <color name="text_primary">#E0E0E0</color>
+    <color name="text_secondary">#ADADAD</color>
+    <color name="text_hint">#616161</color>
+
+    <color name="accent_error">#FF5252</color>
 </resources>

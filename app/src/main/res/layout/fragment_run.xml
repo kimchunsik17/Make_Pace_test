@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="@color/dark_background">
 
     <!-- 1. 배경 지도 -->
     <com.google.android.gms.maps.MapView
@@ -17,7 +17,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#FFFFFF"
+        android:background="@color/dark_surface"
         android:paddingTop="10dp">
 
         <RelativeLayout
@@ -29,13 +29,14 @@
                 android:layout_height="30dp"
                 android:layout_centerVertical="true"
                 android:contentDescription="Camera"
-                android:src="@android:drawable/ic_menu_camera" />
+                android:src="@android:drawable/ic_menu_camera"
+                app:tint="@color/text_primary" />
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
                 android:text="러닝"
-                android:textColor="#000000"
+                android:textColor="@color/text_primary"
                 android:textSize="22sp"
                 android:textStyle="bold" />
             <ImageView
@@ -44,16 +45,18 @@
                 android:layout_alignParentEnd="true"
                 android:layout_centerVertical="true"
                 android:contentDescription="Star"
-                android:src="@android:drawable/btn_star_big_off" />
+                android:src="@android:drawable/btn_star_big_off"
+                app:tint="@color/text_primary" />
         </RelativeLayout>
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:tabIndicatorColor="#000000"
-            app:tabSelectedTextColor="#000000"
-            app:tabTextColor="#ADADAD">
+            android:background="@color/dark_surface"
+            app:tabIndicatorColor="@color/sea_blue"
+            app:tabSelectedTextColor="@color/sea_blue"
+            app:tabTextColor="@color/text_secondary">
             <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="바로 시작" />
             <com.google.android.material.tabs.TabItem android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="러닝 가이드" />
         </com.google.android.material.tabs.TabLayout>
@@ -64,7 +67,7 @@
         android:id="@+id/trackingStatsLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#B3000000"
+        android:background="#E6121212"
         android:gravity="center"
         android:orientation="vertical"
         android:visibility="gone">
@@ -74,7 +77,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="0.00"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/text_primary"
             android:textSize="100sp"
             android:textStyle="bold"
             android:fontFamily="sans-serif-condensed-light" />
@@ -83,10 +86,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="킬로미터"
-            android:textColor="#ADADAD"
+            android:textColor="@color/text_secondary"
             android:textSize="18sp" />
 
-        <!-- AI 예측 페이스 (임시 표시) -->
+        <!-- AI 예측 페이스 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -98,7 +101,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="AI 제안 페이스"
-                android:textColor="#81D4FA"
+                android:textColor="@color/sea_blue_light"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
@@ -107,7 +110,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="--'--"
-                android:textColor="#81D4FA"
+                android:textColor="@color/sea_blue_light"
                 android:textSize="24sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -119,7 +122,6 @@
             android:layout_marginTop="30dp"
             android:orientation="vertical">
 
-            <!-- 1행: 현재 페이스 | 평균 페이스 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -137,14 +139,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="--'--"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_primary"
                         android:textSize="26sp"
                         android:textStyle="bold" />
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="현재 페이스"
-                        android:textColor="#ADADAD" />
+                        android:textColor="@color/text_secondary" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -158,18 +160,17 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0'00"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_primary"
                         android:textSize="26sp"
                         android:textStyle="bold" />
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="평균 페이스"
-                        android:textColor="#ADADAD" />
+                        android:textColor="@color/text_secondary" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- 2행: 시간 | 고도 상승 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -188,14 +189,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="00:00:00"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_primary"
                         android:textSize="26sp"
                         android:textStyle="bold" />
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="시간"
-                        android:textColor="#ADADAD" />
+                        android:textColor="@color/text_secondary" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -209,14 +210,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0m"
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/text_primary"
                         android:textSize="26sp"
                         android:textStyle="bold" />
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="고도 상승"
-                        android:textColor="#ADADAD" />
+                        android:textColor="@color/text_secondary" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
@@ -254,7 +255,7 @@
                 android:insetRight="0dp"
                 android:insetBottom="0dp"
                 android:text="RUN"
-                android:textColor="#000000"
+                android:textColor="@color/black"
                 android:textSize="28sp"
                 android:textStyle="bold"
                 android:maxLines="1"
@@ -269,10 +270,11 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="15dp"
             android:background="@drawable/bg_white_capsule"
+            android:backgroundTint="@color/dark_surface"
             android:paddingHorizontal="25dp"
             android:paddingVertical="10dp"
             android:text="목표 설정"
-            android:textColor="#000000"
+            android:textColor="@color/text_primary"
             android:textStyle="bold"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -287,7 +289,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:elevation="10dp"
-        android:textColor="#0091EA"
+        android:textColor="@color/sea_blue"
         android:textSize="180sp"
         android:textStyle="bold"
         android:visibility="gone" />

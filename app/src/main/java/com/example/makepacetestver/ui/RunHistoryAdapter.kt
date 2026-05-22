@@ -10,41 +10,34 @@ import com.example.makepacetestver.databinding.ItemRunHistoryBinding
 import java.text.SimpleDateFormat
 import java.util.*
 
-class RunHistoryAdapter(private val onItemClick: (RunEntity) -> Unit) : ListAdapter<RunEntity, RunHistoryAdapter.RunViewHolder>(RunDiffCallback()) {
+class RunHistoryAdapter(private val onClick: (RunEntity) -> Unit) :
+    ListAdapter<RunEntity, RunHistoryAdapter.RunViewHolder>(RunDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RunViewHolder {
         val binding = ItemRunHistoryBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return RunViewHolder(binding, onItemClick)
+        return RunViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: RunViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    class RunViewHolder(
-        private val binding: ItemRunHistoryBinding,
-        private val onItemClick: (RunEntity) -> Unit
-    ) : RecyclerView.ViewHolder(binding.root) {
+    inner class RunViewHolder(private val binding: ItemRunHistoryBinding) :
+        RecyclerView.ViewHolder(binding.root) {
         fun bind(run: RunEntity) {
-            binding.root.setOnClickListener { onItemClick(run) }
             val df = SimpleDateFormat("yyyy. MM. dd HH:mm", Locale.getDefault())
-            binding.tvDate.text = df.format(Date(run.timestamp))
-            binding.tvDistance.text = String.format("%.2f km", run.distanceMeter / 1000f)
-            binding.tvPace.text = "페이스: ${run.avgPace}"
+            binding.tvHistoryDate.text = df.format(Date(run.timestamp))
+            binding.tvHistoryDistance.text = String.format(Locale.getDefault(), "%.2f km", run.distanceMeter / 1000f)
+            binding.tvHistoryPace.text = run.avgPace
             
-            val seconds = (run.durationMillis / 1000) % 60
-            val minutes = (run.durationMillis / (1000 * 60)) % 60
-            val hours = (run.durationMillis / (1000 * 60 * 60))
-            binding.tvDuration.text = String.format("시간: %02d:%02d:%02d", hours, minutes, seconds)
+            binding.root.setOnClickListener { onClick(run) }
         }
     }
 
     class RunDiffCallback : DiffUtil.ItemCallback<RunEntity>() {
-        override fun areItemsTheSame(oldItem: RunEntity, newItem: RunEntity): Boolean {
-            return oldItem.id == newItem.id
-        }
-        override fun areContentsTheSame(oldItem: RunEntity, newItem: RunEntity): Boolean {
-            return oldItem == newItem
-        }
+        override fun areItemsTheSame(oldItem: RunEntity, newItem: RunEntity): Boolean =
+            oldItem.id == newItem.id
+        override fun areContentsTheSame(oldItem: RunEntity, newItem: RunEntity): Boolean =
+            oldItem == newItem
     }
 }

@@ -112,7 +112,7 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
         }
 
         val predictedDataSet = LineDataSet(predictedEntries, "AI Predicted").apply {
-            color = Color.LTGRAY
+            color = Color.parseColor("#80FFFFFF") // Semi-transparent white
             setDrawCircles(false)
             lineWidth = 2f
             enableDashedLine(10f, 10f, 0f)
@@ -122,10 +122,22 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
         binding.paceChart.apply {
             data = LineData(actualDataSet, predictedDataSet)
             description.isEnabled = false
-            xAxis.position = XAxis.XAxisPosition.BOTTOM
-            xAxis.setDrawGridLines(false)
+            
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(false)
+                textColor = Color.parseColor("#ADADAD")
+            }
+            
             axisRight.isEnabled = false
-            axisLeft.setDrawGridLines(true)
+            axisLeft.apply {
+                setDrawGridLines(true)
+                gridColor = Color.parseColor("#33FFFFFF")
+                textColor = Color.parseColor("#ADADAD")
+            }
+            
+            legend.textColor = Color.WHITE
+
             animateX(1000)
             invalidate()
         }

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="@color/dark_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -38,7 +38,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="2026. 05. 16"
-                        android:textColor="#ADADAD"
+                        android:textColor="@color/text_secondary"
                         android:textSize="14sp" />
 
                     <TextView
@@ -47,7 +47,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="5.20 km"
-                        android:textColor="#000000"
+                        android:textColor="@color/text_primary"
                         android:textSize="36sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -65,7 +65,7 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Share"
                         android:src="@android:drawable/ic_menu_share"
-                        app:tint="#0091EA" />
+                        app:tint="@color/sea_blue" />
 
                     <ImageButton
                         android:id="@+id/btnDelete"
@@ -74,7 +74,7 @@
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Delete"
                         android:src="@android:drawable/ic_menu_delete"
-                        app:tint="#FF5252" />
+                        app:tint="@color/accent_error" />
                 </LinearLayout>
             </RelativeLayout>
 
@@ -82,14 +82,13 @@
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginVertical="24dp"
-                android:background="#EEEEEE" />
+                android:background="@color/dark_surface" />
 
             <!-- 수치 그리드 -->
             <GridLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:columnCount="2"
-                android:rowCount="2">
+                android:columnCount="2">
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -101,14 +100,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="평균 페이스"
-                        android:textColor="#ADADAD"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                     <TextView
                         android:id="@+id/tvDetailPace"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="5'30"
-                        android:textColor="#000000"
+                        android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -122,14 +121,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="시간"
-                        android:textColor="#ADADAD"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                     <TextView
                         android:id="@+id/tvDetailDuration"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="00:28:40"
-                        android:textColor="#000000"
+                        android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -143,31 +142,31 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="고도 상승"
-                        android:textColor="#ADADAD"
+                        android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                     <TextView
                         android:id="@+id/tvDetailElevation"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="45m"
-                        android:textColor="#000000"
+                        android:textColor="@color/text_primary"
                         android:textSize="20sp"
                         android:textStyle="bold" />
                 </LinearLayout>
             </GridLayout>
 
-            <!-- 3. 머신러닝 분석 영역 (Placeholder) -->
+            <!-- 3. 머신러닝 분석 영역 -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginVertical="24dp"
-                android:background="#EEEEEE" />
+                android:background="@color/dark_surface" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="AI 러닝 분석 (실제 vs 예측)"
-                android:textColor="#000000"
+                android:textColor="@color/text_primary"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -182,7 +181,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="* 파란색: 실제 페이스, 점선: AI 예측 페이스"
-                android:textColor="#ADADAD"
+                android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
 
         </LinearLayout>
