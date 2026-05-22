@@ -21,4 +21,8 @@ class MainActivity : AppCompatActivity() {
         
         binding.bottomNav.setupWithNavController(navController)
     }
+
+    fun setBottomNavVisibility(isVisible: Boolean) {
+        binding.bottomNav.visibility = if (isVisible) android.view.View.VISIBLE else android.view.View.GONE
+    }
 }

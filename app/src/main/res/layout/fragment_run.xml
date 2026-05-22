@@ -86,6 +86,32 @@
             android:textColor="#ADADAD"
             android:textSize="18sp" />
 
+        <!-- AI 예측 페이스 (임시 표시) -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="AI 제안 페이스"
+                android:textColor="#81D4FA"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvPredictedPace"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="--'--"
+                android:textColor="#81D4FA"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -189,29 +215,15 @@
                 android:insetTop="0dp"
                 android:insetRight="0dp"
                 android:insetBottom="0dp"
-                android:text="시작"
+                android:text="RUN"
                 android:textColor="#000000"
                 android:textSize="28sp"
                 android:textStyle="bold"
+                android:maxLines="1"
                 app:cornerRadius="70dp"
                 app:elevation="0dp"
                 app:rippleColor="#20000000" />
         </FrameLayout>
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/btnMusic"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="25dp"
-            android:backgroundTint="#FFFFFF"
-            android:contentDescription="Music"
-            android:src="@android:drawable/ic_media_play"
-            app:elevation="4dp"
-            app:fabSize="normal"
-            app:layout_constraintBottom_toBottomOf="@id/btnContainer"
-            app:layout_constraintStart_toEndOf="@id/btnContainer"
-            app:layout_constraintTop_toTopOf="@id/btnContainer"
-            app:tint="#000000" />
 
         <TextView
             android:id="@+id/tvGoalSetting"

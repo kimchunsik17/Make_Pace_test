@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.example.makepacetestver.MainActivity
 import com.example.makepacetestver.R
 import com.example.makepacetestver.data.db.AppDatabase
 import com.example.makepacetestver.databinding.FragmentRunBinding
@@ -87,6 +88,10 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
         binding.mapView.onCreate(savedInstanceState)
         binding.mapView.getMapAsync(this)
+
+        // 머신러닝 예측기 및 보이스 매니저 초기화
+        viewModel.initVoiceManager(requireContext())
+        viewModel.initPredictor(requireContext())
 
         setupStopButtonLogic()
         observeViewModel()
@@ -267,8 +272,9 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun startTracking() {
         isTracking = true
+        (requireActivity() as? MainActivity)?.setBottomNavVisibility(false)
         binding.controllerLayout.visibility = View.VISIBLE
-        binding.btnStartStop.text = "일시정지"
+        binding.btnStartStop.text = "PAUSE"
         binding.btnContainer.background.setTint(Color.parseColor("#EEEEEE")) // 일시정지 가능 상태색 (연한 회색)
         
         binding.headerLayout.visibility = View.GONE
@@ -285,13 +291,14 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun stopTracking() {
         isTracking = false
+        (requireActivity() as? MainActivity)?.setBottomNavVisibility(true)
         isCooldown = true
         lifecycleScope.launch {
             delay(3000)
             isCooldown = false
         }
 
-        binding.btnStartStop.text = "시작"
+        binding.btnStartStop.text = "RUN"
         binding.btnContainer.background.setTint(Color.parseColor("#0091EA")) // 바다색 블루
         
         binding.headerLayout.visibility = View.VISIBLE
@@ -313,7 +320,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.isPaused.collectLatest { paused ->
                 if (isTracking) {
-                    binding.btnStartStop.text = if (paused) "재개" else "일시정지"
+                    binding.btnStartStop.text = if (paused) "RESUME" else "PAUSE"
                     binding.btnContainer.background.setTint(
                         if (paused) Color.parseColor("#0091EA") else Color.parseColor("#EEEEEE")
                     )
@@ -349,6 +356,20 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             viewModel.elapsedTime.collectLatest { time ->
                 _binding?.let {
                     it.tvTimer.text = time
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.predictedPace.collectLatest { pace ->
+                _binding?.let {
+                    if (pace != null) {
+                        val minutes = pace.toInt()
+                        val seconds = ((pace - minutes) * 60).toInt()
+                        it.tvPredictedPace.text = String.format(Locale.getDefault(), "%d'%02d", minutes, seconds)
+                    } else {
+                        it.tvPredictedPace.text = "--'--"
+                    }
                 }
             }
         }

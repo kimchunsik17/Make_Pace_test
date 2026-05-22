@@ -11,6 +11,7 @@ import com.example.makepacetestver.data.db.RunDao
 import com.example.makepacetestver.data.db.RunEntity
 import com.example.makepacetestver.data.db.RunPointEntity
 import com.example.makepacetestver.service.TrackingService
+import com.example.makepacetestver.utils.RunningCoachPredictor
 import com.example.makepacetestver.utils.VoiceCoachingManager
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
@@ -26,15 +27,25 @@ import kotlin.math.roundToInt
 class RunningViewModel(private val runDao: RunDao) : ViewModel() {
 
     private var voiceManager: VoiceCoachingManager? = null
+    private var predictor: RunningCoachPredictor? = null
+    
     private var selectedStrategy: PaceStrategy? = null
     private var targetPaceSeconds: Int = 0
     private var currentPaceInSeconds: Int = 0
+
+    // User Profile for ML
+    private var userAge = 30f
+    private var userGender = 1f // Male default
+    private var userWeight = 70f
 
     private val _distance = MutableStateFlow(0f)
     val distance = _distance.asStateFlow()
 
     private val _currentPace = MutableStateFlow("0'00")
     val currentPace = _currentPace.asStateFlow()
+
+    private val _predictedPace = MutableStateFlow<Float?>(null)
+    val predictedPace = _predictedPace.asStateFlow()
 
     private val _elapsedTime = MutableStateFlow("00:00:00")
     val elapsedTime = _elapsedTime.asStateFlow()
@@ -89,6 +100,26 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         }
     }
 
+    fun initPredictor(context: Context) {
+        if (predictor == null) {
+            predictor = RunningCoachPredictor(context)
+            fetchUserProfileForML()
+        }
+    }
+
+    private fun fetchUserProfileForML() {
+        val user = FirebaseAuth.getInstance().currentUser ?: return
+        val db = FirebaseFirestore.getInstance()
+        db.collection("users").document(user.uid).get().addOnSuccessListener { userDoc ->
+            val researchId = userDoc.getString("researchId") ?: return@addOnSuccessListener
+            db.collection("research_data").document(researchId).get().addOnSuccessListener { researchDoc ->
+                userAge = researchDoc.getLong("age")?.toFloat() ?: 30f
+                userWeight = researchDoc.getDouble("weight")?.toFloat() ?: 70f
+                userGender = if (researchDoc.getString("gender") == "male") 1f else 0f
+            }
+        }
+    }
+
     fun setStrategy(strategy: PaceStrategy) {
         this.selectedStrategy = strategy
         this.targetPaceSeconds = strategy.basePaceMinutes * 60
@@ -110,9 +141,17 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
             while (true) {
                 delay(30000) // 30초마다 체크
                 if (selectedStrategy != null && currentPaceInSeconds > 0) {
+                    // 1. 머신러닝 예측값이 있으면 이를 바탕으로 타겟 페이스 보정 (선택 사항)
+                    val coachingTarget = if (_predictedPace.value != null) {
+                        // 예측된 페이스를 70%, 전략 페이스를 30% 비율로 섞어 동적 타겟 생성 예시
+                        ((_predictedPace.value!! * 60 * 0.7) + (targetPaceSeconds * 0.3)).toInt()
+                    } else {
+                        targetPaceSeconds
+                    }
+
                     voiceManager?.coachPace(
                         currentPaceInSeconds,
-                        targetPaceSeconds,
+                        coachingTarget,
                         selectedStrategy!!.tolerancePercentage
                     )
                 }
@@ -135,6 +174,26 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                 if (newLocation.hasAltitude() && last.hasAltitude()) {
                     val altDiff = newLocation.altitude - last.altitude
                     if (altDiff > 0) _elevationGain.value += altDiff
+                    
+                    // ML 추론을 위한 경사도 계산 (Altitude Delta / Distance Delta)
+                    val grade = (altDiff / distanceToLast).toFloat()
+                    
+                    // 현재 페이스 (분/km)
+                    val currentPaceMinKm = if (newLocation.speed > 0) {
+                        (1000f / newLocation.speed) / 60f
+                    } else {
+                        ((1000f / (distanceToLast / timeDelta)) / 60f)
+                    }
+
+                    // 2. 머신러닝 추론 호출
+                    val predicted = predictor?.predictNextPace(
+                        currentPace = currentPaceMinKm,
+                        currentGrade = grade,
+                        age = userAge,
+                        gender = userGender,
+                        weight = userWeight
+                    )
+                    _predictedPace.value = predicted
                 }
 
                 val speed = if (newLocation.speed > 0) newLocation.speed else (distanceToLast / timeDelta)
@@ -225,5 +284,6 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         voiceManager?.shutdown()
+        predictor?.close()
     }
 }
