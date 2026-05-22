@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import com.example.makepacetestver.data.UserPreferences
 import com.example.makepacetestver.databinding.ActivityLoginBinding
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -18,6 +19,7 @@ class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
     private lateinit var auth: FirebaseAuth
+    private lateinit var userPrefs: UserPreferences
 
     private val googleSignInLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -37,9 +39,10 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         auth = FirebaseAuth.getInstance()
+        userPrefs = UserPreferences(this)
 
-        // 이미 로그인되어 있는지 확인
-        if (auth.currentUser != null) {
+        // 이미 로그인되어 있고 로컬에 프로필이 있다면 바로 시작 (오프라인 지원)
+        if (auth.currentUser != null && userPrefs.getResearchId() != null) {
             startMainActivity()
         }
 
@@ -84,25 +87,31 @@ class LoginActivity : AppCompatActivity() {
                         "researchId" to researchId
                     )
                     
-                    // 1. 식별 정보 저장
                     db.collection("users").document(user.uid).set(userProfile)
                         .addOnSuccessListener {
-                            // 2. 신규 유저는 무조건 설정 화면으로 이동
+                            userPrefs.saveProfile(researchId, 0, 0f, 0f, "unspecified")
                             startSetupActivity()
                         }
                 } else {
-                    // 기존 유저라면 설정 데이터가 있는지 확인
                     val researchId = document.getString("researchId") ?: return@addOnSuccessListener
                     db.collection("research_data").document(researchId).get()
                         .addOnSuccessListener { researchDoc ->
-                            val age = researchDoc.getLong("age") ?: 0
-                            if (age == 0L) {
-                                startSetupActivity()
-                            } else {
-                                startMainActivity()
-                            }
+                            val age = researchDoc.getLong("age")?.toInt() ?: 0
+                            val height = researchDoc.getDouble("height")?.toFloat() ?: 0f
+                            val weight = researchDoc.getDouble("weight")?.toFloat() ?: 0f
+                            val gender = researchDoc.getString("gender") ?: "unspecified"
+                            
+                            userPrefs.saveProfile(researchId, age, height, weight, gender)
+                            
+                            if (age == 0) startSetupActivity() else startMainActivity()
+                        }
+                        .addOnFailureListener {
+                            if (userPrefs.getResearchId() != null) startMainActivity()
                         }
                 }
+            }
+            .addOnFailureListener {
+                if (userPrefs.getResearchId() != null) startMainActivity()
             }
     }
 

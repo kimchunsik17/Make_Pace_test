@@ -2,6 +2,7 @@ package com.example.makepacetestver.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -46,6 +47,7 @@ class HomeFragment : Fragment() {
         setupTipsViewPager()
         loadWeeklyStats()
         updateWeatherInfo()
+        setupCalendar()
 
         binding.btnMonthAnalysis.setOnClickListener {
             showCalendarAnalysis("월간 분석")
@@ -121,6 +123,39 @@ class HomeFragment : Fragment() {
             } else {
                 binding.tvTemperature.text = "날씨 정보 없음"
             }
+        }
+    }
+
+    private fun setupCalendar() {
+        binding.calendarView.setOnDateChangeListener { _, year, month, dayOfMonth ->
+            val calendar = Calendar.getInstance()
+            calendar.set(year, month, dayOfMonth, 0, 0, 0)
+            val startOfDay = calendar.timeInMillis
+            calendar.set(year, month, dayOfMonth, 23, 59, 59)
+            val endOfDay = calendar.timeInMillis
+
+            val runDao = AppDatabase.getDatabase(requireContext()).getRunDao()
+            viewLifecycleOwner.lifecycleScope.launch {
+                val allRuns = runDao.getAllRuns().first()
+                val dayRuns = allRuns.filter { it.timestamp in startOfDay..endOfDay }
+                
+                updateSelectedDayUi(year, month, dayOfMonth, dayRuns)
+            }
+        }
+    }
+
+    private fun updateSelectedDayUi(year: Int, month: Int, day: Int, dayRuns: List<RunEntity>) {
+        binding.tvSelectedDate.text = "${year}. ${month + 1}. ${day}"
+        
+        if (dayRuns.isNotEmpty()) {
+            val totalDistance = dayRuns.sumOf { it.distanceMeter.toDouble() }.toFloat()
+            binding.tvSelectedDateDistance.text = String.format(Locale.getDefault(), "%.2f km", totalDistance / 1000f)
+            binding.tvSelectedDateDesc.text = "총 ${dayRuns.size}회의 활동이 있습니다."
+            binding.tvSelectedDateDesc.setTextColor(Color.BLACK)
+        } else {
+            binding.tvSelectedDateDistance.text = "0.00 km"
+            binding.tvSelectedDateDesc.text = "해당 날짜의 활동 기록이 없습니다."
+            binding.tvSelectedDateDesc.setTextColor(Color.LTGRAY)
         }
     }
 

@@ -339,7 +339,15 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.currentPace.collectLatest { pace ->
                 _binding?.let {
-                    it.tvPace.text = pace
+                    it.tvCurrentPace.text = pace
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.averagePace.collectLatest { pace ->
+                _binding?.let {
+                    it.tvAveragePace.text = pace
                 }
             }
         }

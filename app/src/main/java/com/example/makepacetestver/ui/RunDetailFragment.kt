@@ -13,7 +13,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.makepacetestver.data.db.AppDatabase
 import com.example.makepacetestver.data.db.RunEntity
+import com.example.makepacetestver.data.db.RunPointEntity
 import com.example.makepacetestver.databinding.FragmentRunDetailBinding
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -50,10 +55,14 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
 
         if (runId != -1L) {
             viewLifecycleOwner.lifecycleScope.launch {
-                val run = AppDatabase.getDatabase(requireContext()).getRunDao().getRunById(runId)
+                val db = AppDatabase.getDatabase(requireContext())
+                val run = db.getRunDao().getRunById(runId)
+                val points = db.getRunDao().getPointsForRun(runId)
+                
                 run?.let {
                     runEntity = it
                     displayRunData(it)
+                    setupChart(points)
                     updateMapIfReady()
                 }
             }
@@ -71,6 +80,55 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
         val hours = (run.durationMillis / (1000 * 60 * 60))
         binding.tvDetailDuration.text = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
         binding.tvDetailElevation.text = String.format(Locale.getDefault(), "%.0fm", run.elevationGain)
+    }
+
+    private fun setupChart(points: List<RunPointEntity>) {
+        if (points.isEmpty()) return
+
+        val actualEntries = mutableListOf<Entry>()
+        val predictedEntries = mutableListOf<Entry>()
+
+        points.forEachIndexed { index, point ->
+            // 실제 페이스 (speed -> pace min/km)
+            val actualPace = if (point.instantaneousSpeed > 0.1) {
+                (1000f / point.instantaneousSpeed) / 60f
+            } else 0f
+            
+            if (actualPace > 0 && actualPace < 25) {
+                actualEntries.add(Entry(index.toFloat(), actualPace))
+            }
+
+            // AI 예측 페이스
+            point.predictedPace?.let { predicted ->
+                predictedEntries.add(Entry(index.toFloat(), predicted))
+            }
+        }
+
+        val actualDataSet = LineDataSet(actualEntries, "Actual Pace").apply {
+            color = Color.parseColor("#0091EA")
+            setDrawCircles(false)
+            lineWidth = 2f
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+        }
+
+        val predictedDataSet = LineDataSet(predictedEntries, "AI Predicted").apply {
+            color = Color.LTGRAY
+            setDrawCircles(false)
+            lineWidth = 2f
+            enableDashedLine(10f, 10f, 0f)
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+        }
+
+        binding.paceChart.apply {
+            data = LineData(actualDataSet, predictedDataSet)
+            description.isEnabled = false
+            xAxis.position = XAxis.XAxisPosition.BOTTOM
+            xAxis.setDrawGridLines(false)
+            axisRight.isEnabled = false
+            axisLeft.setDrawGridLines(true)
+            animateX(1000)
+            invalidate()
+        }
     }
 
     private fun shareRun() {

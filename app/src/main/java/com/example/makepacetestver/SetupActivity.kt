@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.example.makepacetestver.data.UserPreferences
 import com.example.makepacetestver.databinding.ActivitySetupBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -11,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 class SetupActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySetupBinding
+    private lateinit var userPrefs: UserPreferences
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
 
@@ -18,6 +20,7 @@ class SetupActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySetupBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        userPrefs = UserPreferences(this)
 
         binding.btnComplete.setOnClickListener {
             saveProfileAndStart()
@@ -56,6 +59,7 @@ class SetupActivity : AppCompatActivity() {
                     
                     db.collection("research_data").document(researchId).set(researchData)
                         .addOnSuccessListener {
+                            userPrefs.saveProfile(researchId, age, height, weight, gender)
                             startMainActivity()
                         }
                         .addOnFailureListener {

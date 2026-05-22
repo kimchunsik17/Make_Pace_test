@@ -93,6 +93,9 @@ dependencies {
     // ONNX Runtime
     implementation(libs.onnxruntime.android)
 
+    // Charts
+    implementation(libs.mpandroidchart)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

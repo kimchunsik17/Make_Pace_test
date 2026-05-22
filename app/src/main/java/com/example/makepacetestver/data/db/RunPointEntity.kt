@@ -20,5 +20,6 @@ data class RunPointEntity(
     val latitude: Double,
     val longitude: Double,
     val altitude: Double,
-    val instantaneousSpeed: Float
+    val instantaneousSpeed: Float,
+    val predictedPace: Float? = null // AI 예측값 저장용 추가
 )

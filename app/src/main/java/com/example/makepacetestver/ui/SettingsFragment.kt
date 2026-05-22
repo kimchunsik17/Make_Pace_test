@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.makepacetestver.LoginActivity
 import com.example.makepacetestver.R
+import com.example.makepacetestver.data.UserPreferences
 import com.example.makepacetestver.databinding.FragmentSettingsBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -20,9 +21,11 @@ class SettingsFragment : Fragment() {
     private val binding get() = _binding!!
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
+    private lateinit var userPrefs: UserPreferences
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentSettingsBinding.inflate(inflater, container, false)
+        userPrefs = UserPreferences(requireContext())
         return binding.root
     }
 
@@ -95,6 +98,7 @@ class SettingsFragment : Fragment() {
                 
                 db.collection("research_data").document(researchId).set(researchData)
                     .addOnSuccessListener {
+                        userPrefs.saveProfile(researchId, age, height, weight, gender)
                         if (isAdded) Toast.makeText(requireContext(), "정보가 저장되었습니다.", Toast.LENGTH_SHORT).show()
                     }
             }
@@ -102,6 +106,7 @@ class SettingsFragment : Fragment() {
 
     private fun logout() {
         auth.signOut()
+        userPrefs.clear()
         val intent = Intent(requireContext(), LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

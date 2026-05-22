@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.makepacetestver.data.PaceStrategy
 import com.example.makepacetestver.data.TrackingPoint
+import com.example.makepacetestver.data.UserPreferences
 import com.example.makepacetestver.data.toTrackingPoint
 import com.example.makepacetestver.data.db.RunDao
 import com.example.makepacetestver.data.db.RunEntity
@@ -28,6 +29,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
 
     private var voiceManager: VoiceCoachingManager? = null
     private var predictor: RunningCoachPredictor? = null
+    private var userPrefs: UserPreferences? = null
     
     private var selectedStrategy: PaceStrategy? = null
     private var targetPaceSeconds: Int = 0
@@ -41,8 +43,11 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val _distance = MutableStateFlow(0f)
     val distance = _distance.asStateFlow()
 
-    private val _currentPace = MutableStateFlow("0'00")
+    private val _currentPace = MutableStateFlow("--'--")
     val currentPace = _currentPace.asStateFlow()
+
+    private val _averagePace = MutableStateFlow("0'00")
+    val averagePace = _averagePace.asStateFlow()
 
     private val _predictedPace = MutableStateFlow<Float?>(null)
     val predictedPace = _predictedPace.asStateFlow()
@@ -103,7 +108,17 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     fun initPredictor(context: Context) {
         if (predictor == null) {
             predictor = RunningCoachPredictor(context)
-            fetchUserProfileForML()
+            userPrefs = UserPreferences(context)
+            loadProfileFromCache() // 캐시된 프로필 먼저 로드
+            fetchUserProfileForML() // 가능하면 최신화
+        }
+    }
+
+    private fun loadProfileFromCache() {
+        userPrefs?.let {
+            userAge = it.getAge().toFloat()
+            userWeight = it.getWeight().toFloat()
+            userGender = if (it.getGender() == "male") 1f else 0f
         }
     }
 
@@ -170,39 +185,42 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
 
             if (distanceToLast > 0.1 && timeDelta > 0) {
                 _distance.value += distanceToLast
+                
+                // 1. 현재 페이스 계산 (속도 기반, 필터링 적용)
+                val speed = if (newLocation.speed > 0) newLocation.speed else (distanceToLast / timeDelta)
+                if (speed > 0.5) { // 걷는 속도 이상일 때만 페이스 업데이트
+                    val currentPaceSec = (1000 / speed).toInt()
+                    _currentPace.value = String.format(Locale.getDefault(), "%d'%02d", currentPaceSec / 60, currentPaceSec % 60)
+                } else {
+                    _currentPace.value = "--'--"
+                }
+
+                // 2. 평균 페이스 계산 (전체 거리 / 경과 시간)
+                val totalElapsedSec = (System.currentTimeMillis() - startTimeMillis) / 1000
+                if (_distance.value > 10 && totalElapsedSec > 0) {
+                    val avgPaceSec = (totalElapsedSec / (_distance.value / 1000)).toInt()
+                    if (avgPaceSec < 1500) { // 비현실적인 페이스 방지
+                        _averagePace.value = String.format(Locale.getDefault(), "%d'%02d", avgPaceSec / 60, avgPaceSec % 60)
+                    }
+                }
 
                 if (newLocation.hasAltitude() && last.hasAltitude()) {
                     val altDiff = newLocation.altitude - last.altitude
                     if (altDiff > 0) _elevationGain.value += altDiff
                     
-                    // ML 추론을 위한 경사도 계산 (Altitude Delta / Distance Delta)
                     val grade = (altDiff / distanceToLast).toFloat()
-                    
-                    // 현재 페이스 (분/km)
-                    val currentPaceMinKm = if (newLocation.speed > 0) {
-                        (1000f / newLocation.speed) / 60f
-                    } else {
-                        ((1000f / (distanceToLast / timeDelta)) / 60f)
+                    val currentPaceMinKm = if (speed > 0.1) (1000f / speed) / 60f else 0f
+
+                    if (currentPaceMinKm > 0) {
+                        val predicted = predictor?.predictNextPace(
+                            currentPace = currentPaceMinKm,
+                            currentGrade = grade,
+                            age = userAge,
+                            gender = userGender,
+                            weight = userWeight
+                        )
+                        _predictedPace.value = predicted
                     }
-
-                    // 2. 머신러닝 추론 호출
-                    val predicted = predictor?.predictNextPace(
-                        currentPace = currentPaceMinKm,
-                        currentGrade = grade,
-                        age = userAge,
-                        gender = userGender,
-                        weight = userWeight
-                    )
-                    _predictedPace.value = predicted
-                }
-
-                val speed = if (newLocation.speed > 0) newLocation.speed else (distanceToLast / timeDelta)
-                
-                if (speed > 0.1) {
-                    currentPaceInSeconds = (1000 / speed).toInt()
-                    val paceMinutes = currentPaceInSeconds / 60
-                    val paceSeconds = currentPaceInSeconds % 60
-                    _currentPace.value = String.format(Locale.getDefault(), "%d'%02d", paceMinutes, paceSeconds)
                 }
             }
         }
@@ -210,7 +228,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     }
 
     private fun updatePath(location: Location) {
-        val trackingPoint = location.toTrackingPoint()
+        val trackingPoint = location.toTrackingPoint(_predictedPace.value)
         _pathPointsWithDetails.value = _pathPointsWithDetails.value + trackingPoint
         
         val newLatLng = LatLng(location.latitude, location.longitude)
@@ -236,7 +254,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                     latitude = it.latitude,
                     longitude = it.longitude,
                     altitude = it.altitude,
-                    instantaneousSpeed = it.speed
+                    instantaneousSpeed = it.speed,
+                    predictedPace = it.predictedPace
                 )
             }
             runDao.insertRunPoints(runPoints)

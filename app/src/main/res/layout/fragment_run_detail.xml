@@ -166,26 +166,24 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="AI 러닝 분석"
+                android:text="AI 러닝 분석 (실제 vs 예측)"
                 android:textColor="#000000"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-            <androidx.cardview.widget.CardView
+            <com.github.mikephil.charting.charts.LineChart
+                android:id="@+id/paceChart"
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:layout_marginTop="16dp"
-                app:cardBackgroundColor="#F9F9F9"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp">
+                android:layout_height="250dp"
+                android:layout_marginTop="16dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:text="데이터 분석 중... (시계열 모델 준비 중)"
-                    android:textColor="#ADADAD" />
-            </androidx.cardview.widget.CardView>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="* 파란색: 실제 페이스, 점선: AI 예측 페이스"
+                android:textColor="#ADADAD"
+                android:textSize="11sp" />
 
         </LinearLayout>
     </LinearLayout>
