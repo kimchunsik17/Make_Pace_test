@@ -67,19 +67,51 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val _pathPoints = MutableStateFlow<List<LatLng>>(emptyList())
     val pathPoints = _pathPoints.asStateFlow()
 
+    private val _lastSavedRunId = MutableStateFlow(-1L)
+    val lastSavedRunId = _lastSavedRunId.asStateFlow()
+
+    // 클럽 루트 모드: 선택한 참조 경로 및 목표 페이스
+    private val _clubRoutePoints = MutableStateFlow<List<LatLng>>(emptyList())
+    val clubRoutePoints = _clubRoutePoints.asStateFlow()
+
+    fun setClubRoute(points: List<LatLng>, targetPaceSec: Int, routeId: String = "") {
+        _clubRoutePoints.value = points
+        targetPaceSeconds = targetPaceSec
+        isPlannedRunning = true
+        currentClubRouteId = routeId
+    }
+
+    fun clearClubRoute() {
+        _clubRoutePoints.value = emptyList()
+    }
+
+    /** Planned Running 모드에서 목표 페이스만 설정 */
+    fun setGoalPace(paceSec: Int) {
+        targetPaceSeconds = paceSec
+        isPlannedRunning = true
+    }
+
+
     private val _pathPointsWithDetails = MutableStateFlow<List<TrackingPoint>>(emptyList())
     
     private var lastLocation: Location? = null
     private var timerJob: Job? = null
-    private var startTimeMillis = 0L
+    private var lastStartTimeMillis = 0L
+    private var accumulatedTimeMillis = 0L  // 일시정지 전까지 누적된 시간
     private var lastDistanceMilestone = 0 // km 단위
     private val reachedPercentMilestones = mutableSetOf<Int>() // 25, 50, 75, 100
+
+    // 현재 클럽 루트 ID (댓글/완주 기록용)
+    var currentClubRouteId: String = ""
 
     fun togglePause() {
         _isPaused.value = !_isPaused.value
         if (_isPaused.value) {
+            // 일시정지: 현재까지 경과 시간 누적 저장
+            accumulatedTimeMillis += System.currentTimeMillis() - lastStartTimeMillis
             timerJob?.cancel()
         } else {
+            // 재개: 마지막 시작 시간 갱신하고 타이머 재시작
             startTimer()
         }
     }
@@ -94,18 +126,20 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         _pathPoints.value = emptyList()
         _pathPointsWithDetails.value = emptyList()
         lastLocation = null
-        startTimeMillis = 0L
+        lastStartTimeMillis = 0L
+        accumulatedTimeMillis = 0L
         currentPaceInSeconds = 0
         lastDistanceMilestone = 0
         reachedPercentMilestones.clear()
+        currentClubRouteId = ""
     }
 
     fun startTimer() {
-        startTimeMillis = System.currentTimeMillis()
+        lastStartTimeMillis = System.currentTimeMillis()
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (true) {
-                val elapsed = System.currentTimeMillis() - startTimeMillis
+                val elapsed = accumulatedTimeMillis + (System.currentTimeMillis() - lastStartTimeMillis)
                 val seconds = (elapsed / 1000) % 60
                 val minutes = (elapsed / (1000 * 60)) % 60
                 val hours = (elapsed / (1000 * 60 * 60))
@@ -117,7 +151,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
 
     fun stopTimer(): Long {
         timerJob?.cancel()
-        return System.currentTimeMillis() - startTimeMillis
+        return accumulatedTimeMillis + (System.currentTimeMillis() - lastStartTimeMillis)
     }
 
     fun initVoiceManager(context: Context) {
@@ -278,8 +312,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                     _currentPace.value = "--'--"
                 }
 
-                // 2. 평균 페이스 계산 (전체 거리 / 경과 시간)
-                val totalElapsedSec = (System.currentTimeMillis() - startTimeMillis) / 1000
+                // 2. 평균 페이스 계산 (전체 거리 / 경과 시간, 일시정지 시간 제외)
+                val totalElapsedSec = (accumulatedTimeMillis + (System.currentTimeMillis() - lastStartTimeMillis)) / 1000
                 if (_distance.value > 10 && totalElapsedSec > 0) {
                     val avgPaceSec = (totalElapsedSec / (_distance.value / 1000)).toInt()
                     if (avgPaceSec < 1500) { // 비현실적인 페이스 방지
@@ -385,6 +419,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                 pathPointsJson = Gson().toJson(_pathPoints.value)
             )
             val runId = runDao.insertRun(runEntity)
+            _lastSavedRunId.value = runId
 
             val runPoints = _pathPointsWithDetails.value.map {
                 RunPointEntity(

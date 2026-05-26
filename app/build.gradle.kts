@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.example.makepacetestver"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.makepacetestver"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -52,6 +52,15 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("androidx.core:core:1.13.1")
+        force("androidx.core:core-ktx:1.13.1")
+        force("androidx.activity:activity:1.9.3")
+        force("androidx.activity:activity-ktx:1.9.3")
     }
 }
 

@@ -2,6 +2,7 @@ package com.example.makepacetestver.ui
 
 import android.content.Intent
 import android.graphics.Color
+import android.location.Location
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -19,6 +20,8 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
@@ -52,6 +55,7 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
 
         binding.btnShare.setOnClickListener { shareRun() }
         binding.btnDelete.setOnClickListener { confirmDelete() }
+        binding.btnShareToClub.setOnClickListener { shareToClub() }
 
         if (runId != -1L) {
             viewLifecycleOwner.lifecycleScope.launch {
@@ -83,64 +87,164 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun setupChart(points: List<RunPointEntity>) {
-        if (points.isEmpty()) return
+        if (points.size < 2) {
+            binding.paceChart.visibility = View.GONE
+            binding.tvChartEmpty.visibility = View.VISIBLE
+            return
+        }
 
-        val actualEntries = mutableListOf<Entry>()
+        // ── 1. GPS 포인트를 1km 구간 버킷으로 그루핑 ──────────────────
+        data class KmBucket(
+            val actualPaces: MutableList<Float> = mutableListOf(),
+            val predictedPaces: MutableList<Float> = mutableListOf()
+        )
+
+        val buckets = mutableMapOf<Int, KmBucket>()
+        var cumulativeDistanceM = 0.0
+
+        for (i in 1 until points.size) {
+            val prev = points[i - 1]
+            val curr = points[i]
+
+            // 두 GPS 포인트 간 거리 (m)
+            val dist = FloatArray(1)
+            Location.distanceBetween(
+                prev.latitude, prev.longitude,
+                curr.latitude, curr.longitude,
+                dist
+            )
+            cumulativeDistanceM += dist[0]
+
+            val kmIdx = (cumulativeDistanceM / 1000).toInt()
+            val bucket = buckets.getOrPut(kmIdx) { KmBucket() }
+
+            // 실제 페이스: 순간 속도 → 분/km 변환 (2분~15분 범위만 유효)
+            if (curr.instantaneousSpeed > 0.5f) {
+                val paceSec = 1000f / curr.instantaneousSpeed
+                if (paceSec in 120f..900f) {
+                    bucket.actualPaces.add(paceSec / 60f)
+                }
+            }
+
+            // AI 예측 페이스
+            curr.predictedPace?.let { p ->
+                if (p in 2f..15f) bucket.predictedPaces.add(p)
+            }
+        }
+
+        if (buckets.isEmpty()) {
+            binding.paceChart.visibility = View.GONE
+            binding.tvChartEmpty.visibility = View.VISIBLE
+            return
+        }
+
+        // ── 2. 버킷별 평균 → Entry 리스트 생성 ───────────────────────
+        val actualEntries   = mutableListOf<Entry>()
         val predictedEntries = mutableListOf<Entry>()
+        val xLabels         = mutableListOf<String>()
 
-        points.forEachIndexed { index, point ->
-            // 실제 페이스 (speed -> pace min/km)
-            val actualPace = if (point.instantaneousSpeed > 0.1) {
-                (1000f / point.instantaneousSpeed) / 60f
-            } else 0f
-            
-            if (actualPace > 0 && actualPace < 25) {
-                actualEntries.add(Entry(index.toFloat(), actualPace))
+        buckets.keys.sorted().forEachIndexed { idx, kmIdx ->
+            val bucket = buckets[kmIdx]!!
+            xLabels.add("${kmIdx + 1}km")
+
+            if (bucket.actualPaces.isNotEmpty()) {
+                actualEntries.add(Entry(idx.toFloat(), bucket.actualPaces.average().toFloat()))
             }
-
-            // 적정 페이스 (블렌딩된 예측값)
-            point.predictedPace?.let { predicted ->
-                predictedEntries.add(Entry(index.toFloat(), predicted))
+            if (bucket.predictedPaces.isNotEmpty()) {
+                predictedEntries.add(Entry(idx.toFloat(), bucket.predictedPaces.average().toFloat()))
             }
         }
 
-        val actualDataSet = LineDataSet(actualEntries, "Actual Pace").apply {
-            color = Color.parseColor("#0091EA")
-            setDrawCircles(false)
-            lineWidth = 2f
+        // ── 3. 데이터셋 스타일링 ──────────────────────────────────────
+        val colorActual    = Color.parseColor("#0091EA")   // sea_blue
+        val colorPredicted = Color.parseColor("#81D4FA")   // sea_blue_light
+        val dark           = Color.parseColor("#1E1E1E")
+
+        val actualDataSet = LineDataSet(actualEntries, "실제 페이스").apply {
+            color = colorActual
+            lineWidth = 2.5f
+            setDrawCircles(true)
+            circleRadius = 4f
+            setCircleColor(colorActual)
+            circleHoleColor = dark
+            circleHoleRadius = 2f
             mode = LineDataSet.Mode.CUBIC_BEZIER
+            setDrawFilled(true)
+            fillAlpha = 25
+            fillColor = colorActual
+            setDrawValues(false)
         }
 
-        val predictedDataSet = LineDataSet(predictedEntries, "Appropriate Pace").apply {
-            color = Color.parseColor("#80FFFFFF") // Semi-transparent white
-            setDrawCircles(false)
+        val predictedDataSet = LineDataSet(predictedEntries, "AI 예측 페이스").apply {
+            color = colorPredicted
             lineWidth = 2f
-            enableDashedLine(10f, 10f, 0f)
+            setDrawCircles(false)
+            enableDashedLine(14f, 6f, 0f)
             mode = LineDataSet.Mode.CUBIC_BEZIER
+            setDrawValues(false)
         }
 
+        // ── 4. Y축: float → "M:SS" 포매터 ────────────────────────────
+        val paceFormatter = object : ValueFormatter() {
+            override fun getFormattedValue(value: Float): String {
+                val totalSec = (value * 60).toInt()
+                return "%d'%02d\"".format(totalSec / 60, totalSec % 60)
+            }
+        }
+
+        // ── 5. 차트 최종 설정 ─────────────────────────────────────────
         binding.paceChart.apply {
+            visibility = View.VISIBLE
             data = LineData(actualDataSet, predictedDataSet)
             description.isEnabled = false
-            
+            setBackgroundColor(Color.TRANSPARENT)
+            setTouchEnabled(true)
+            isDragEnabled = true
+            setScaleEnabled(false)
+            setNoDataText("페이스 데이터가 없습니다")
+
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
                 textColor = Color.parseColor("#ADADAD")
+                textSize = 11f
+                valueFormatter = IndexAxisValueFormatter(xLabels)
+                granularity = 1f
+                labelCount = xLabels.size.coerceAtMost(8)
             }
-            
+
             axisRight.isEnabled = false
             axisLeft.apply {
                 setDrawGridLines(true)
-                gridColor = Color.parseColor("#33FFFFFF")
+                gridColor = Color.parseColor("#1AFFFFFF")
                 textColor = Color.parseColor("#ADADAD")
+                textSize = 11f
+                valueFormatter = paceFormatter
+                setLabelCount(5, false)
+                // 페이스: 낮을수록(빠를수록) 위에 표시
+                isInverted = true
             }
-            
-            legend.textColor = Color.WHITE
 
-            animateX(1000)
+            legend.apply {
+                textColor = Color.parseColor("#ADADAD")
+                textSize = 12f
+            }
+
+            animateX(900)
             invalidate()
         }
+    }
+
+    private fun shareToClub() {
+        val run = runEntity ?: return
+        val distanceKm = run.distanceMeter / 1000.0
+        val sheet = ShareToClubBottomSheet.newInstance(
+            runId = run.id,
+            distanceKm = distanceKm,
+            avgPace = run.avgPace,
+            durationMillis = run.durationMillis
+        )
+        sheet.show(parentFragmentManager, "share_to_club")
     }
 
     private fun shareRun() {
