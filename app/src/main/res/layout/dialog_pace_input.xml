@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- 루트 이름 칩 -->
+    <TextView
+        android:id="@+id/tvPaceRouteLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="#1A0091EA"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:textColor="#FF0091EA"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <!-- 설명 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="⏱  목표 페이스 설정"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textColor="#1A1A1A"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="1km 기준  분 : 초  형식으로 입력하세요"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="예)  5:30  →  1km 당 5분 30초"
+        android:textSize="12sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="20dp" />
+
+    <!-- 입력 필드 -->
+    <EditText
+        android:id="@+id/etPaceInput"
+        android:layout_width="160dp"
+        android:layout_height="60dp"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center"
+        android:hint="5:30"
+        android:inputType="text"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="#1A1A1A"
+        android:textColorHint="#CCCCCC"
+        android:background="@drawable/bg_pace_input_border"
+        android:maxLength="5"
+        android:letterSpacing="0.1" />
+
+    <!-- 에러 메시지 -->
+    <TextView
+        android:id="@+id/tvPaceError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="4dp"
+        android:gravity="center"
+        android:text=""
+        android:textColor="#FFFF5252"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</LinearLayout>

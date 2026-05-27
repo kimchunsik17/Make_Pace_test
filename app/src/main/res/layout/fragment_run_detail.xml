@@ -58,6 +58,16 @@
                     android:layout_alignParentEnd="true"
                     android:orientation="horizontal">
 
+                    <Button
+                        android:id="@+id/btnShareToClub"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:backgroundTint="@color/sea_blue"
+                        android:text="클럽 공유"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:layout_marginEnd="8dp" />
+
                     <ImageButton
                         android:id="@+id/btnShare"
                         android:layout_width="48dp"
@@ -155,33 +165,101 @@
                 </LinearLayout>
             </GridLayout>
 
-            <!-- 3. 머신러닝 분석 영역 -->
+            <!-- 3. 페이스 분석 차트 -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginVertical="24dp"
                 android:background="@color/dark_surface" />
 
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- 섹션 헤더 -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="AI 러닝 분석 (실제 vs 예측)"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="4dp">
 
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="📊  km별 페이스 분석"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <!-- 레전드 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp"
+                android:gravity="center_vertical">
+
+                <View
+                    android:layout_width="18dp"
+                    android:layout_height="3dp"
+                    android:background="@color/sea_blue" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginEnd="16dp"
+                    android:text="실제 페이스"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="2dp"
+                    android:background="@color/sea_blue_light" />
+                <View
+                    android:layout_width="4dp"
+                    android:layout_height="2dp"
+                    android:background="@color/dark_surface" />
+                <View
+                    android:layout_width="6dp"
+                    android:layout_height="2dp"
+                    android:background="@color/sea_blue_light" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="AI 예측"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
+
+            <!-- 차트 -->
             <com.github.mikephil.charting.charts.LineChart
                 android:id="@+id/paceChart"
                 android:layout_width="match_parent"
-                android:layout_height="250dp"
-                android:layout_marginTop="16dp" />
+                android:layout_height="220dp" />
 
+            <!-- 데이터 없을 때 -->
+            <TextView
+                android:id="@+id/tvChartEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:gravity="center"
+                android:text="GPS 데이터가 부족해 그래프를 그릴 수 없어요"
+                android:textColor="@color/text_hint"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <!-- 안내 텍스트 -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="* 파란색: 실제 페이스, 점선: 적정 페이스"
-                android:textColor="@color/text_secondary"
+                android:text="빠를수록 위, 느릴수록 아래  ·  1km 구간 평균"
+                android:textColor="@color/text_hint"
                 android:textSize="11sp" />
 
         </LinearLayout>

@@ -93,13 +93,26 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
                 when (tab?.position) {
-                    0 -> viewModel.setPlannedRunning(false) // Just Running
-                    1 -> viewModel.setPlannedRunning(true)  // Planned Running
+                    0 -> {
+                        isPlannedMode = false
+                        viewModel.setPlannedRunning(false)
+                        binding.tvGoalSetting.text = "자유 달리기"
+                    }
+                    1 -> {
+                        isPlannedMode = true
+                        viewModel.setPlannedRunning(true)
+                        updateGoalSettingLabel()
+                    }
                 }
             }
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
         })
+
+        // 목표 설정 버튼
+        binding.tvGoalSetting.setOnClickListener {
+            if (isPlannedMode) showGoalSettingDialog()
+        }
 
         // 머신러닝 예측기 및 보이스 매니저 초기화
         viewModel.initVoiceManager(requireContext())
@@ -155,6 +168,9 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     }
 
     private var isLongPressing = false
+    private var goalDistanceM = 0f
+    private var goalPaceSec = 0
+    private var isPlannedMode = false
 
     private fun handleCountdownClick() {
         val currentTime = System.currentTimeMillis()
@@ -224,7 +240,220 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun finishRun() {
         stopLongPressAnimation()
-        stopTracking()
+        stopTrackingAndShowSummary()
+    }
+
+    private fun showPauseSummary() {
+        binding.trackingStatsLayout.visibility = View.GONE
+        binding.pauseSummaryLayout.visibility = View.VISIBLE
+        binding.tvSummaryLabel.text = "일시정지"
+        binding.pauseControlButtons.visibility = View.VISIBLE
+        binding.btnSummaryDone.visibility = View.GONE
+        binding.btnSummaryShareToClub.visibility = View.GONE
+
+        // 현재 스탯 채우기
+        binding.tvSummaryDistance.text = binding.tvDistance.text
+        binding.tvSummaryTime.text = binding.tvTimer.text
+        binding.tvSummaryPace.text = binding.tvAveragePace.text
+        binding.tvSummaryElevation.text = binding.tvElevation.text
+
+        // ▶ 재개
+        binding.btnSummaryResume.setOnClickListener {
+            viewModel.togglePause()
+        }
+
+        // ■ 종료
+        binding.btnSummaryStop.setOnClickListener {
+            stopTrackingAndShowSummary()
+        }
+    }
+
+    private fun hidePauseSummary() {
+        binding.pauseSummaryLayout.visibility = View.GONE
+        binding.trackingStatsLayout.visibility = View.VISIBLE
+    }
+
+    private fun stopTrackingAndShowSummary() {
+        isTracking = false
+        viewModel.setTrackingActive(false)
+        (requireActivity() as? MainActivity)?.setBottomNavVisibility(true)
+        isCooldown = true
+        lifecycleScope.launch {
+            delay(3000)
+            isCooldown = false
+        }
+
+        val duration = viewModel.stopTimer()
+        val intent = Intent(requireContext(), TrackingService::class.java).apply {
+            action = TrackingService.ACTION_STOP
+        }
+        requireActivity().startService(intent)
+        viewModel.saveRun(duration)
+
+        // 클럽 루트 완주 기록 (댓글 권한용)
+        val routeId = viewModel.currentClubRouteId
+        if (routeId.isNotEmpty()) {
+            val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+            if (userId != null) {
+                com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                    .collection("running_routes").document(routeId)
+                    .update("ranBy", com.google.firebase.firestore.FieldValue.arrayUnion(userId))
+            }
+        }
+
+        // 완료 요약 화면으로 전환
+        showFinishSummary(duration)
+    }
+
+    private fun showFinishSummary(durationMillis: Long) {
+        binding.trackingStatsLayout.visibility = View.GONE
+        binding.controllerLayout.visibility = View.GONE
+        binding.headerLayout.visibility = View.GONE
+        binding.pauseSummaryLayout.visibility = View.VISIBLE
+
+        binding.tvSummaryLabel.text = "러닝 완료 🎉"
+        binding.pauseControlButtons.visibility = View.GONE
+        binding.btnSummaryDone.visibility = View.VISIBLE
+        binding.btnSummaryShareToClub.visibility = View.VISIBLE
+
+        // 최종 스탯 채우기
+        binding.tvSummaryDistance.text = binding.tvDistance.text
+        binding.tvSummaryTime.text = binding.tvTimer.text
+        binding.tvSummaryPace.text = binding.tvAveragePace.text
+        binding.tvSummaryElevation.text = binding.tvElevation.text
+
+        // 클럽 공유 버튼 - lastSavedRunId 관찰해서 연결
+        binding.btnSummaryShareToClub.setOnClickListener {
+            val runId = viewModel.lastSavedRunId.value
+            val distanceKm = viewModel.distance.value / 1000.0
+            val avgPace = viewModel.averagePace.value
+            val sheet = ShareToClubBottomSheet.newInstance(runId, distanceKm, avgPace, durationMillis)
+            sheet.show(parentFragmentManager, "share_to_club")
+        }
+
+        // 확인 버튼 - 러닝 화면 초기화
+        binding.btnSummaryDone.setOnClickListener {
+            binding.pauseSummaryLayout.visibility = View.GONE
+            binding.goalProgressLayout.visibility = View.GONE
+            binding.headerLayout.visibility = View.VISIBLE
+            binding.tvGoalSetting.visibility = View.VISIBLE
+            binding.controllerLayout.visibility = View.VISIBLE
+            binding.btnStartStop.text = "RUN"
+            binding.btnContainer.background.setTint(Color.parseColor("#0091EA"))
+            viewModel.clearClubRoute()
+            map?.clear()
+        }
+    }
+
+    // ─────────────────────────────────────
+    // 목표 설정 다이얼로그
+    // ─────────────────────────────────────
+    private fun showGoalSettingDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_goal_setting, null)
+
+        val btn3k    = dialogView.findViewById<android.widget.Button>(R.id.btnGoal3k)
+        val btn5k    = dialogView.findViewById<android.widget.Button>(R.id.btnGoal5k)
+        val btn10k   = dialogView.findViewById<android.widget.Button>(R.id.btnGoal10k)
+        val btnHalf  = dialogView.findViewById<android.widget.Button>(R.id.btnGoalHalf)
+        val btnFull  = dialogView.findViewById<android.widget.Button>(R.id.btnGoalFull)
+        val etCustom = dialogView.findViewById<android.widget.EditText>(R.id.etGoalDistanceCustom)
+        val etPace   = dialogView.findViewById<android.widget.EditText>(R.id.etGoalPace)
+        val tvError  = dialogView.findViewById<android.widget.TextView>(R.id.tvGoalPaceError)
+        val tvSummary = dialogView.findViewById<android.widget.TextView>(R.id.tvGoalSummary)
+        val btnConfirm = dialogView.findViewById<android.widget.Button>(R.id.btnGoalConfirm)
+
+        // 거리 프리셋 (km)
+        val presets = mapOf(btn3k to 3.0f, btn5k to 5.0f, btn10k to 10.0f, btnHalf to 21.1f, btnFull to 42.2f)
+        var selectedDistKm = 3.0f
+
+        fun updateSummary() {
+            val paceStr = etPace.text.toString().trim()
+            tvSummary.visibility = View.VISIBLE
+            tvSummary.text = "${String.format("%.1f", selectedDistKm)} km · ${paceStr.ifEmpty { "--:--" }} /km 로 달리기"
+        }
+
+        fun selectPreset(btn: android.widget.Button, km: Float) {
+            presets.forEach { (b, _) ->
+                b.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF2A2A2A.toInt())
+                b.setTextColor(0xFFADADAD.toInt())
+            }
+            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF0091EA.toInt())
+            btn.setTextColor(0xFFFFFFFF.toInt())
+            selectedDistKm = km
+            etCustom.text.clear()
+            updateSummary()
+        }
+
+        // 초기 선택: 현재 목표 or 3K
+        selectPreset(btn3k, 3.0f)
+        if (goalPaceSec > 0) {
+            etPace.setText("${goalPaceSec / 60}:${String.format("%02d", goalPaceSec % 60)}")
+        }
+
+        presets.forEach { (btn, km) -> btn.setOnClickListener { selectPreset(btn, km) } }
+
+        etCustom.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val v = s?.toString()?.toFloatOrNull() ?: return
+                if (v > 0) {
+                    selectedDistKm = v
+                    presets.forEach { (b, _) ->
+                        b.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF2A2A2A.toInt())
+                        b.setTextColor(0xFFADADAD.toInt())
+                    }
+                    updateSummary()
+                }
+            }
+        })
+        etPace.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) { updateSummary() }
+        })
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        btnConfirm.setOnClickListener {
+            val paceStr = etPace.text.toString().trim().replace(';', ':')
+            val paceSec = parsePaceStr(paceStr)
+            if (paceSec <= 0) {
+                tvError.text = "⚠ 페이스 형식이 올바르지 않아요 (예: 6:00)"
+                tvError.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+            tvError.visibility = View.GONE
+            goalDistanceM = selectedDistKm * 1000f
+            goalPaceSec = paceSec
+            viewModel.setGoalPace(paceSec)
+            updateGoalSettingLabel()
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun updateGoalSettingLabel() {
+        if (goalDistanceM > 0f && goalPaceSec > 0) {
+            val km = goalDistanceM / 1000f
+            val paceStr = "${goalPaceSec / 60}:${String.format("%02d", goalPaceSec % 60)}"
+            binding.tvGoalSetting.text = "🎯 ${String.format("%.1f", km)}km · $paceStr /km"
+        } else {
+            binding.tvGoalSetting.text = "🎯 목표 설정하기"
+        }
+    }
+
+    private fun parsePaceStr(s: String): Int {
+        val parts = s.replace(';', ':').split(":")
+        if (parts.size != 2) return 0
+        val min = parts[0].toIntOrNull() ?: return 0
+        val sec = parts[1].toIntOrNull() ?: return 0
+        if (min !in 1..20 || sec !in 0..59) return 0
+        return min * 60 + sec
     }
 
     private fun checkPermissionsAndStart() {
@@ -307,6 +536,11 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.headerLayout.visibility = View.GONE
         binding.tvGoalSetting.visibility = View.GONE
         binding.trackingStatsLayout.visibility = View.VISIBLE
+        // Planned 모드 + 목표 설정 시 진행 현황 표시
+        if (isPlannedMode && goalDistanceM > 0f) {
+            binding.goalProgressLayout.visibility = View.VISIBLE
+            binding.tvGoalLabel.text = "목표 ${String.format("%.1f", goalDistanceM / 1000f)}km"
+        }
         
         viewModel.startTimer()
 
@@ -317,49 +551,50 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun stopTracking() {
-        isTracking = false
-        viewModel.setTrackingActive(false)
-        (requireActivity() as? MainActivity)?.setBottomNavVisibility(true)
-        isCooldown = true
-        lifecycleScope.launch {
-            delay(3000)
-            isCooldown = false
-        }
-
-        binding.btnStartStop.text = "RUN"
-        binding.btnContainer.background.setTint(Color.parseColor("#0091EA")) // 바다색 블루
-        
-        binding.headerLayout.visibility = View.VISIBLE
-        binding.tvGoalSetting.visibility = View.VISIBLE
-        binding.trackingStatsLayout.visibility = View.GONE
-        
-        val duration = viewModel.stopTimer()
-
-        val intent = Intent(requireContext(), TrackingService::class.java).apply {
-            action = TrackingService.ACTION_STOP
-        }
-        requireActivity().startService(intent)
-        
-        viewModel.saveRun(duration)
-        Toast.makeText(requireContext(), "러닝 기록이 저장되었습니다.", Toast.LENGTH_SHORT).show()
+        // 하위호환 유지용 - 내부에서 새 흐름 호출
+        stopTrackingAndShowSummary()
     }
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.isPaused.collectLatest { paused ->
                 if (isTracking) {
-                    binding.btnStartStop.text = if (paused) "RESUME" else "PAUSE"
-                    binding.btnContainer.background.setTint(
-                        if (paused) Color.parseColor("#0091EA") else Color.parseColor("#EEEEEE")
-                    )
+                    if (paused) {
+                        showPauseSummary()
+                    } else {
+                        hidePauseSummary()
+                        binding.btnStartStop.text = "PAUSE"
+                        binding.btnContainer.background.setTint(Color.parseColor("#EEEEEE"))
+                    }
                 }
             }
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.distance.collectLatest { distance ->
-                _binding?.let {
-                    it.tvDistance.text = String.format(Locale.getDefault(), "%.2f", distance / 1000f)
+                _binding?.let { b ->
+                    b.tvDistance.text = String.format(Locale.getDefault(), "%.2f", distance / 1000f)
+                    // 목표 진행 업데이트
+                    if (isPlannedMode && goalDistanceM > 0f && isTracking) {
+                        val remaining = ((goalDistanceM - distance) / 1000f).coerceAtLeast(0f)
+                        b.tvGoalRemaining.text = String.format("%.2f", remaining)
+                        val progress = ((distance / goalDistanceM) * 100).toInt().coerceIn(0, 100)
+                        b.pbGoalProgress.progress = progress
+                        // 페이스 상태
+                        if (goalPaceSec > 0) {
+                            val currentPaceStr = b.tvCurrentPace.text.toString()
+                            val currentSec = parsePaceStr(currentPaceStr)
+                            b.tvGoalPaceStatus.text = when {
+                                currentSec <= 0 -> "페이스 측정 중"
+                                currentSec < goalPaceSec - 10 -> "🟢 목표보다 빠름"
+                                currentSec > goalPaceSec + 10 -> "🔴 목표보다 느림"
+                                else -> "🟡 페이스 유지 중"
+                            }
+                        }
+                        if (remaining <= 0f) {
+                            b.tvGoalPaceStatus.text = "🎉 목표 달성!"
+                        }
+                    }
                 }
             }
         }
@@ -410,6 +645,23 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
+        // 클럽 참조 경로 (회색 점선) - 먼저 그려서 내 경로 위에 안 덮이게
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.clubRoutePoints.collectLatest { clubPoints ->
+                if (clubPoints.isNotEmpty()) {
+                    val refPolyline = PolylineOptions()
+                        .color(Color.parseColor("#80AAAAAA")) // 반투명 회색
+                        .width(8f)
+                        .pattern(listOf(
+                            com.google.android.gms.maps.model.Dash(20f),
+                            com.google.android.gms.maps.model.Gap(10f)
+                        ))
+                        .addAll(clubPoints)
+                    map?.addPolyline(refPolyline)
+                }
+            }
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.pathPoints.collectLatest { points ->
                 if (points.isNotEmpty()) {
@@ -420,6 +672,19 @@ class RunFragment : Fragment(), OnMapReadyCallback {
                         .addAll(points)
 
                     map?.clear()
+                    // 클럽 참조 경로 다시 그리기 (clear 후에도 유지)
+                    val clubPoints = viewModel.clubRoutePoints.value
+                    if (clubPoints.isNotEmpty()) {
+                        val refPolyline = PolylineOptions()
+                            .color(Color.parseColor("#80AAAAAA"))
+                            .width(8f)
+                            .pattern(listOf(
+                                com.google.android.gms.maps.model.Dash(20f),
+                                com.google.android.gms.maps.model.Gap(10f)
+                            ))
+                            .addAll(clubPoints)
+                        map?.addPolyline(refPolyline)
+                    }
                     map?.addPolyline(polylineOptions)
                     map?.animateCamera(CameraUpdateFactory.newLatLngZoom(points.last(), 17f))
                 }
