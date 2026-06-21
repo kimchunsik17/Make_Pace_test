@@ -39,8 +39,10 @@ class TrackingService : Service() {
         when (intent?.action) {
             ACTION_START -> startForegroundService()
             ACTION_STOP -> stopService()
+            // null intent: OS 재시작 케이스 — 안전하게 서비스 종료
+            else -> stopSelf()
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun startForegroundService() {
@@ -86,8 +88,7 @@ class TrackingService : Service() {
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let { location ->
-                val filtered = locationFilter.filter(location)
-                if (filtered != null) {
+                if (locationFilter.filter(location) != null) {
                     serviceScope.launch {
                         _locationUpdates.emit(location)
                     }

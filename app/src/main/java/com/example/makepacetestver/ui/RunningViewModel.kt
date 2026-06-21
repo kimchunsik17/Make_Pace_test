@@ -83,11 +83,13 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
 
     fun clearClubRoute() {
         _clubRoutePoints.value = emptyList()
+        currentClubRouteId = ""
     }
 
-    /** Planned Running 모드에서 목표 페이스만 설정 */
-    fun setGoalPace(paceSec: Int) {
+    /** Planned Running 모드에서 목표 페이스/거리 설정 */
+    fun setGoalPace(paceSec: Int, targetDistanceKm: Float = 0f) {
         targetPaceSeconds = paceSec
+        if (targetDistanceKm > 0f) goalTargetDistanceKm = targetDistanceKm
         isPlannedRunning = true
     }
 
@@ -100,6 +102,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private var accumulatedTimeMillis = 0L  // 일시정지 전까지 누적된 시간
     private var lastDistanceMilestone = 0 // km 단위
     private val reachedPercentMilestones = mutableSetOf<Int>() // 25, 50, 75, 100
+    private var goalTargetDistanceKm: Float = 0f  // 목표 다이얼로그로 설정한 목표 거리
 
     // 현재 클럽 루트 ID (댓글/완주 기록용)
     var currentClubRouteId: String = ""
@@ -125,12 +128,15 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         _elevationGain.value = 0.0
         _pathPoints.value = emptyList()
         _pathPointsWithDetails.value = emptyList()
+        _isPaused.value = false
+        _lastSavedRunId.value = -1L
         lastLocation = null
         lastStartTimeMillis = 0L
         accumulatedTimeMillis = 0L
         currentPaceInSeconds = 0
         lastDistanceMilestone = 0
         reachedPercentMilestones.clear()
+        goalTargetDistanceKm = 0f
         currentClubRouteId = ""
     }
 
@@ -151,7 +157,12 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
 
     fun stopTimer(): Long {
         timerJob?.cancel()
-        return accumulatedTimeMillis + (System.currentTimeMillis() - lastStartTimeMillis)
+        return if (_isPaused.value) {
+            // 일시정지 상태: 이미 누적된 시간이 정확함 (중복 합산 방지)
+            accumulatedTimeMillis
+        } else {
+            accumulatedTimeMillis + (System.currentTimeMillis() - lastStartTimeMillis)
+        }
     }
 
     fun initVoiceManager(context: Context) {
@@ -248,6 +259,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     init {
         TrackingService.locationUpdates
             .onEach { location ->
+                if (!isTrackingActive) return@onEach
                 calculateMetrics(location)
                 updatePath(location)
             }
@@ -373,7 +385,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     }
 
     private fun checkDistanceMilestones() {
-        val targetKm = selectedStrategy?.customTargetDistanceKm ?: 0f
+        val targetKm = selectedStrategy?.customTargetDistanceKm ?: goalTargetDistanceKm
         if (targetKm <= 0) return
 
         val currentKm = _distance.value / 1000f
@@ -412,7 +424,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         viewModelScope.launch {
             val runEntity = RunEntity(
                 timestamp = System.currentTimeMillis(),
-                avgPace = _currentPace.value,
+                avgPace = _averagePace.value,
                 distanceMeter = _distance.value,
                 durationMillis = durationMillis,
                 elevationGain = _elevationGain.value,
@@ -457,19 +469,22 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
             db.collection("research_data").document(researchId)
                 .collection("runs").add(runData)
                 .addOnSuccessListener { documentReference ->
-                    val pointsBatch = db.batch()
-                    points.forEach { point ->
-                        val pointData = hashMapOf(
-                            "timestamp" to point.timestamp,
-                            "lat" to point.latitude,
-                            "lng" to point.longitude,
-                            "alt" to point.altitude,
-                            "speed" to point.instantaneousSpeed
-                        )
-                        val pointRef = documentReference.collection("points").document()
-                        pointsBatch.set(pointRef, pointData)
+                    // Firestore batch는 500개 제한 — 청크로 분할 처리
+                    points.chunked(400).forEach { chunk ->
+                        val pointsBatch = db.batch()
+                        chunk.forEach { point ->
+                            val pointData = hashMapOf(
+                                "timestamp" to point.timestamp,
+                                "lat" to point.latitude,
+                                "lng" to point.longitude,
+                                "alt" to point.altitude,
+                                "speed" to point.instantaneousSpeed
+                            )
+                            val pointRef = documentReference.collection("points").document()
+                            pointsBatch.set(pointRef, pointData)
+                        }
+                        pointsBatch.commit()
                     }
-                    pointsBatch.commit()
                 }
         }
     }

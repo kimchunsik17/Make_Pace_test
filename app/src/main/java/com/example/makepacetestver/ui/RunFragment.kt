@@ -35,6 +35,7 @@ import com.google.android.gms.maps.model.PolylineOptions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -322,13 +323,18 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.tvSummaryPace.text = binding.tvAveragePace.text
         binding.tvSummaryElevation.text = binding.tvElevation.text
 
-        // 클럽 공유 버튼 - lastSavedRunId 관찰해서 연결
-        binding.btnSummaryShareToClub.setOnClickListener {
-            val runId = viewModel.lastSavedRunId.value
-            val distanceKm = viewModel.distance.value / 1000.0
-            val avgPace = viewModel.averagePace.value
-            val sheet = ShareToClubBottomSheet.newInstance(runId, distanceKm, avgPace, durationMillis)
-            sheet.show(parentFragmentManager, "share_to_club")
+        // saveRun()이 비동기라 저장 완료 전까지 버튼 비활성화 후 runId 확정 시 활성화
+        // first{ }로 유효한 ID 하나만 받고 완료 — 중복 코루틴 방지
+        binding.btnSummaryShareToClub.isEnabled = false
+        viewLifecycleOwner.lifecycleScope.launch {
+            val runId = viewModel.lastSavedRunId.first { it != -1L }
+            _binding?.btnSummaryShareToClub?.isEnabled = true
+            _binding?.btnSummaryShareToClub?.setOnClickListener {
+                val distanceKm = viewModel.distance.value / 1000.0
+                val avgPace = viewModel.averagePace.value
+                val sheet = ShareToClubBottomSheet.newInstance(runId, distanceKm, avgPace, durationMillis)
+                sheet.show(parentFragmentManager, "share_to_club")
+            }
         }
 
         // 확인 버튼 - 러닝 화면 초기화
@@ -429,7 +435,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             tvError.visibility = View.GONE
             goalDistanceM = selectedDistKm * 1000f
             goalPaceSec = paceSec
-            viewModel.setGoalPace(paceSec)
+            viewModel.setGoalPace(paceSec, selectedDistKm)
             updateGoalSettingLabel()
             dialog.dismiss()
         }
@@ -732,6 +738,6 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     override fun onLowMemory() {
         super.onLowMemory()
-        binding.mapView.onLowMemory()
+        _binding?.mapView?.onLowMemory()
     }
 }
