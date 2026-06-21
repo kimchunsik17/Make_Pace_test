@@ -357,21 +357,22 @@
                 app:rippleColor="#20000000" />
         </FrameLayout>
 
-        <TextView
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/tvGoalSetting"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="15dp"
-            android:background="@drawable/bg_white_capsule"
-            android:backgroundTint="@color/dark_surface"
-            android:paddingHorizontal="25dp"
-            android:paddingVertical="10dp"
-            android:text="목표 설정"
+            android:layout_height="48dp"
+            android:layout_marginBottom="20dp"
+            android:paddingHorizontal="28dp"
+            android:text="🎯 목표 설정하기"
             android:textColor="@color/text_primary"
+            android:textSize="14sp"
             android:textStyle="bold"
+            app:backgroundTint="@color/dark_surface"
+            app:cornerRadius="24dp"
+            app:elevation="0dp"
+            app:layout_constraintBottom_toTopOf="@id/btnContainer"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnContainer" />
+            app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

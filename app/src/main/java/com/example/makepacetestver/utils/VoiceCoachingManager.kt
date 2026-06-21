@@ -26,11 +26,21 @@ class VoiceCoachingManager(context: Context) : TextToSpeech.OnInitListener {
     fun coachPace(currentPaceSeconds: Int, targetPaceSeconds: Int, tolerance: Float) {
         val diff = currentPaceSeconds - targetPaceSeconds
         val threshold = targetPaceSeconds * tolerance
+        val curMin = currentPaceSeconds / 60
+        val curSec = currentPaceSeconds % 60
+        val tgtMin = targetPaceSeconds / 60
+        val tgtSec = targetPaceSeconds % 60
 
         when {
-            diff > threshold -> speak("페이스를 높이세요. 조금 더 빠르게 달려야 합니다.")
-            diff < -threshold -> speak("페이스를 낮추세요. 너무 빠르게 달리고 있습니다.")
-            // 적정 범위 내에 있을 때는 아무 말도 하지 않음 (사용자 요청 반영)
+            diff > threshold -> speak(
+                "평균 페이스 ${curMin}분 ${curSec}초. 목표 ${tgtMin}분 ${tgtSec}초보다 느립니다. 조금 더 빠르게 달려보세요."
+            )
+            diff < -threshold -> speak(
+                "평균 페이스 ${curMin}분 ${curSec}초. 목표보다 빠릅니다. 페이스를 조금 줄이세요."
+            )
+            else -> speak(
+                "평균 페이스 ${curMin}분 ${curSec}초. 목표 페이스를 잘 유지하고 있습니다."
+            )
         }
     }
 

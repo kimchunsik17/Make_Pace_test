@@ -148,7 +148,7 @@ class ClubFragment : Fragment() {
 
                 viewModel.setClubRoute(latLngPoints, targetSec, route.id)
                 dialog.dismiss()
-                findNavController().navigate(R.id.nav_run)
+                (requireActivity() as? com.example.makepacetestver.MainActivity)?.selectBottomNavTab(R.id.nav_run)
                 Toast.makeText(context, "참조 경로가 지도에 표시됩니다!", Toast.LENGTH_SHORT).show()
             }
         }

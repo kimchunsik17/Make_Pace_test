@@ -49,7 +49,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val _currentPace = MutableStateFlow("--'--")
     val currentPace = _currentPace.asStateFlow()
 
-    private val _averagePace = MutableStateFlow("0'00")
+    private val _averagePace = MutableStateFlow("--'--")
     val averagePace = _averagePace.asStateFlow()
 
     private val _appropriatePace = MutableStateFlow<Float?>(null)
@@ -108,6 +108,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val reachedPercentMilestones = mutableSetOf<Int>() // 25, 50, 75, 100
     private var goalTargetDistanceKm: Float = 0f  // 목표 다이얼로그로 설정한 목표 거리
     private var smoothedPaceSeconds: Int = 0  // EMA 스무딩된 페이스
+    private var averagePaceInSeconds: Int = 0 // 전체 평균 페이스 (음성 코칭용)
 
     // 현재 클럽 루트 ID (댓글/완주 기록용)
     var currentClubRouteId: String = ""
@@ -127,7 +128,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     fun resetRunData() {
         _distance.value = 0f
         _currentPace.value = "--'--"
-        _averagePace.value = "0'00"
+        _averagePace.value = "--'--"
         _appropriatePace.value = null
         _elapsedTime.value = "00:00:00"
         _elevationGain.value = 0.0
@@ -143,6 +144,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         accumulatedTimeMillis = 0L
         currentPaceInSeconds = 0
         smoothedPaceSeconds = 0
+        averagePaceInSeconds = 0
         lastDistanceMilestone = 0
         reachedPercentMilestones.clear()
         goalTargetDistanceKm = 0f
@@ -247,6 +249,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         this.isTrackingActive = active
     }
 
+    fun getSelectedStrategyTitle(): String? = selectedStrategy?.title
+
     private fun calculateDynamicTargetPace(strategy: PaceStrategy) {
         var baseSeconds = strategy.basePaceMinutes * 60
         
@@ -286,10 +290,10 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                 // 추적 중이 아니거나 일시정지 상태면 건너뜀
                 // 목표 페이스가 설정돼 있으면 Just Running 모드에서도 음성 코칭 실행
                 if (!isTrackingActive || _isPaused.value) continue
-                if (targetPaceSeconds <= 0 || currentPaceInSeconds <= 0) continue
+                if (targetPaceSeconds <= 0 || averagePaceInSeconds <= 0) continue
 
-                // 사용자가 설정한 목표 페이스 기준으로 비교 (AI 블렌딩 값 사용 안 함)
-                voiceManager?.coachPace(currentPaceInSeconds, targetPaceSeconds, 0.05f)
+                // 평균 페이스 기준으로 코칭 (GPS 초기 튐 영향 없음)
+                voiceManager?.coachPace(averagePaceInSeconds, targetPaceSeconds, 0.05f)
             }
         }
     }
@@ -333,6 +337,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                     val avgPaceSec = (totalElapsedSec / (_distance.value / 1000)).toInt()
                     if (avgPaceSec < 1500) { // 비현실적인 페이스 방지
                         _averagePace.value = String.format(Locale.getDefault(), "%d'%02d", avgPaceSec / 60, avgPaceSec % 60)
+                        averagePaceInSeconds = avgPaceSec
                     }
 
                     // 1km 마다 브리핑 (사용자 요청 반영)

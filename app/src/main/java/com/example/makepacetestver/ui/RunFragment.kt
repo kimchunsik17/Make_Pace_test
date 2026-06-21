@@ -121,6 +121,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
         setupStopButtonLogic()
         observeViewModel()
+        updateGoalSettingLabel()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -534,10 +535,18 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         val isPlanned = binding.tabLayout.selectedTabPosition == 1
         viewModel.setPlannedRunning(isPlanned)
         
-        if (isPlanned) {
-            viewModel.speakImmediate("러닝 가이드를 시작합니다. 페이스에 맞춰 달려주세요.")
-        } else {
-            viewModel.speakImmediate("자유 러닝을 시작합니다.")
+        val strategyTitle = viewModel.getSelectedStrategyTitle()
+        when {
+            isPlanned && strategyTitle != null -> {
+                val shortTitle = strategyTitle.substringBefore("(").trim()
+                val particle = if (shortTitle.last().code in 0xAC00..0xD7A3 &&
+                    (shortTitle.last().code - 0xAC00) % 28 != 0) "을" else "를"
+                viewModel.speakImmediate("${shortTitle}${particle} 시작합니다. 페이스에 맞춰 달려보세요.")
+            }
+            goalPaceSec > 0 -> viewModel.speakImmediate(
+                "목표 러닝을 시작합니다. 목표 페이스 ${goalPaceSec / 60}분 ${String.format("%02d", goalPaceSec % 60)}초."
+            )
+            else -> viewModel.speakImmediate("자유 러닝을 시작합니다.")
         }
 
         (requireActivity() as? MainActivity)?.setBottomNavVisibility(false)
@@ -590,25 +599,28 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             viewModel.distance.collectLatest { distance ->
                 _binding?.let { b ->
                     b.tvDistance.text = String.format(Locale.getDefault(), "%.2f", distance / 1000f)
-                    // 목표 진행 업데이트
-                    if (isPlannedMode && goalDistanceM > 0f && isTracking) {
-                        val remaining = ((goalDistanceM - distance) / 1000f).coerceAtLeast(0f)
-                        b.tvGoalRemaining.text = String.format("%.2f", remaining)
-                        val progress = ((distance / goalDistanceM) * 100).toInt().coerceIn(0, 100)
-                        b.pbGoalProgress.progress = progress
-                        // 페이스 상태
-                        if (goalPaceSec > 0) {
-                            val currentPaceStr = b.tvCurrentPace.text.toString()
-                            val currentSec = parsePaceStr(currentPaceStr)
-                            b.tvGoalPaceStatus.text = when {
-                                currentSec <= 0 -> "페이스 측정 중"
-                                currentSec < goalPaceSec - 10 -> "🟢 목표보다 빠름"
-                                currentSec > goalPaceSec + 10 -> "🔴 목표보다 느림"
-                                else -> "🟡 페이스 유지 중"
+                    if (isTracking) {
+                        var goalReached = false
+                        // 거리 기반 진행률 (거리 목표 있을 때만)
+                        if (goalDistanceM > 0f) {
+                            val remaining = ((goalDistanceM - distance) / 1000f).coerceAtLeast(0f)
+                            b.tvGoalRemaining.text = String.format("%.2f", remaining)
+                            val progress = ((distance / goalDistanceM) * 100).toInt().coerceIn(0, 100)
+                            b.pbGoalProgress.progress = progress
+                            if (remaining <= 0f) {
+                                b.tvGoalPaceStatus.text = "🎉 목표 달성!"
+                                goalReached = true
                             }
                         }
-                        if (remaining <= 0f) {
-                            b.tvGoalPaceStatus.text = "🎉 목표 달성!"
+                        // 페이스 상태 (목표 페이스 있고 아직 목표 달성 전)
+                        if (goalPaceSec > 0 && !goalReached) {
+                            val avgSec = parsePaceStr(b.tvAveragePace.text.toString())
+                            b.tvGoalPaceStatus.text = when {
+                                avgSec <= 0 -> "페이스 측정 중"
+                                avgSec < goalPaceSec - 10 -> "🟢 목표보다 빠름"
+                                avgSec > goalPaceSec + 10 -> "🔴 목표보다 느림"
+                                else -> "🟡 페이스 유지 중"
+                            }
                         }
                     }
                 }
