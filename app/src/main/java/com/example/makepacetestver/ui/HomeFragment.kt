@@ -61,9 +61,9 @@ class HomeFragment : Fragment() {
         loadAllStats()
         setupPrButtons()
 
-        // 빠른 달리기 시작
+        // 빠른 달리기 시작 — 바텀 네비 탭 선택 방식으로 이동 (백스택 꼬임 방지)
         binding.btnQuickStart.setOnClickListener {
-            findNavController().navigate(R.id.nav_run)
+            (requireActivity() as? com.example.makepacetestver.MainActivity)?.selectBottomNavTab(R.id.nav_run)
         }
 
         // 최근 러닝 카드 클릭 → 상세 기록 (runId는 loadAllStats에서 설정)

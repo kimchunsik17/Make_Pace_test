@@ -110,9 +110,9 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
         })
 
-        // 목표 설정 버튼
+        // 목표 설정 버튼 — 항상 다이얼로그 열기 (모드 무관)
         binding.tvGoalSetting.setOnClickListener {
-            if (isPlannedMode) showGoalSettingDialog()
+            showGoalSettingDialog()
         }
 
         // 머신러닝 예측기 및 보이스 매니저 초기화
@@ -436,6 +436,12 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             goalDistanceM = selectedDistKm * 1000f
             goalPaceSec = paceSec
             viewModel.setGoalPace(paceSec, selectedDistKm)
+            // 목표 설정 시 자동으로 Planned Running 모드 전환
+            if (!isPlannedMode) {
+                binding.tabLayout.selectTab(binding.tabLayout.getTabAt(1))
+                isPlannedMode = true
+                viewModel.setPlannedRunning(true)
+            }
             updateGoalSettingLabel()
             dialog.dismiss()
         }

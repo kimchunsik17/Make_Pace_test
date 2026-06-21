@@ -103,6 +103,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private var lastDistanceMilestone = 0 // km 단위
     private val reachedPercentMilestones = mutableSetOf<Int>() // 25, 50, 75, 100
     private var goalTargetDistanceKm: Float = 0f  // 목표 다이얼로그로 설정한 목표 거리
+    private var smoothedPaceSeconds: Int = 0  // EMA 스무딩된 페이스
 
     // 현재 클럽 루트 ID (댓글/완주 기록용)
     var currentClubRouteId: String = ""
@@ -134,6 +135,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         lastStartTimeMillis = 0L
         accumulatedTimeMillis = 0L
         currentPaceInSeconds = 0
+        smoothedPaceSeconds = 0
         lastDistanceMilestone = 0
         reachedPercentMilestones.clear()
         goalTargetDistanceKm = 0f
@@ -309,13 +311,15 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                 val speed = if (newLocation.speed > 0) newLocation.speed else (distanceToLast / timeDelta)
                 
                 // 속도 보정: 0.5m/s(시속 1.8km) 이하이면 멈춘 것으로 간주
-                if (speed > 0.5) { 
-                    val paceSec = (1000 / speed).toInt()
-                    // 현실적인 페이스 범위 설정 (2분/km ~ 15분/km)
-                    if (paceSec in 120..900) {
-                        currentPaceInSeconds = paceSec
+                if (speed > 0.5) {
+                    val rawPaceSec = (1000 / speed).toInt()
+                    if (rawPaceSec in 120..900) {
+                        // EMA 스무딩 (α=0.25: 새 값 25%, 이전 값 75%) — GPS 튐 방지
+                        smoothedPaceSeconds = if (smoothedPaceSeconds == 0) rawPaceSec
+                        else ((0.25f * rawPaceSec) + (0.75f * smoothedPaceSeconds)).toInt()
+                        currentPaceInSeconds = smoothedPaceSeconds
                         _currentPace.value = String.format(Locale.getDefault(), "%d'%02d", currentPaceInSeconds / 60, currentPaceInSeconds % 60)
-                    } else if (paceSec > 900) {
+                    } else if (rawPaceSec > 900) {
                         _currentPace.value = "--'--"
                         currentPaceInSeconds = 0
                     }

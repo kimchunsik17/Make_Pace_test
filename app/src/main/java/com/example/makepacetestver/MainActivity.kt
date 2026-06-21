@@ -34,4 +34,8 @@ class MainActivity : AppCompatActivity() {
     fun setBottomNavVisibility(isVisible: Boolean) {
         binding.bottomNav.visibility = if (isVisible) android.view.View.VISIBLE else android.view.View.GONE
     }
+
+    fun selectBottomNavTab(itemId: Int) {
+        binding.bottomNav.selectedItemId = itemId
+    }
 }

@@ -9,7 +9,8 @@ data class PaceStrategy(
     val colorHex: String,
     val basePaceMinutes: Int,
     val tolerancePercentage: Float = 0.1f,
-    var customTargetDistanceKm: Float? = null // 사용자가 입력한 목표 거리 저장용
+    var customTargetDistanceKm: Float? = null,
+    var customTargetPaceSec: Int? = null      // 사용자가 입력한 목표 페이스 (초)
 )
 
 object StrategyProvider {
