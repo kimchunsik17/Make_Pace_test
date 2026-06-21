@@ -128,6 +128,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         _elevationGain.value = 0.0
         _pathPoints.value = emptyList()
         _pathPointsWithDetails.value = emptyList()
+        _isPaused.value = false
+        _lastSavedRunId.value = -1L
         lastLocation = null
         lastStartTimeMillis = 0L
         accumulatedTimeMillis = 0L
@@ -257,6 +259,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     init {
         TrackingService.locationUpdates
             .onEach { location ->
+                if (!isTrackingActive) return@onEach
                 calculateMetrics(location)
                 updatePath(location)
             }
@@ -466,19 +469,22 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
             db.collection("research_data").document(researchId)
                 .collection("runs").add(runData)
                 .addOnSuccessListener { documentReference ->
-                    val pointsBatch = db.batch()
-                    points.forEach { point ->
-                        val pointData = hashMapOf(
-                            "timestamp" to point.timestamp,
-                            "lat" to point.latitude,
-                            "lng" to point.longitude,
-                            "alt" to point.altitude,
-                            "speed" to point.instantaneousSpeed
-                        )
-                        val pointRef = documentReference.collection("points").document()
-                        pointsBatch.set(pointRef, pointData)
+                    // Firestore batch는 500개 제한 — 청크로 분할 처리
+                    points.chunked(400).forEach { chunk ->
+                        val pointsBatch = db.batch()
+                        chunk.forEach { point ->
+                            val pointData = hashMapOf(
+                                "timestamp" to point.timestamp,
+                                "lat" to point.latitude,
+                                "lng" to point.longitude,
+                                "alt" to point.altitude,
+                                "speed" to point.instantaneousSpeed
+                            )
+                            val pointRef = documentReference.collection("points").document()
+                            pointsBatch.set(pointRef, pointData)
+                        }
+                        pointsBatch.commit()
                     }
-                    pointsBatch.commit()
                 }
         }
     }

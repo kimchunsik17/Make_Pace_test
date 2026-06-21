@@ -86,32 +86,47 @@ class LoginActivity : AppCompatActivity() {
                         "email" to user.email,
                         "researchId" to researchId
                     )
-                    
                     db.collection("users").document(user.uid).set(userProfile)
                         .addOnSuccessListener {
                             userPrefs.saveProfile(researchId, 0, 0f, 0f, "unspecified")
                             startSetupActivity()
                         }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(this, "프로필 생성 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
                 } else {
-                    val researchId = document.getString("researchId") ?: return@addOnSuccessListener
+                    val researchId = document.getString("researchId")
+                    if (researchId == null) {
+                        // researchId 없는 비정상 계정 → 재설정
+                        userPrefs.clear()
+                        startSetupActivity()
+                        return@addOnSuccessListener
+                    }
                     db.collection("research_data").document(researchId).get()
                         .addOnSuccessListener { researchDoc ->
                             val age = researchDoc.getLong("age")?.toInt() ?: 0
                             val height = researchDoc.getDouble("height")?.toFloat() ?: 0f
                             val weight = researchDoc.getDouble("weight")?.toFloat() ?: 0f
                             val gender = researchDoc.getString("gender") ?: "unspecified"
-                            
                             userPrefs.saveProfile(researchId, age, height, weight, gender)
-                            
                             if (age == 0) startSetupActivity() else startMainActivity()
                         }
-                        .addOnFailureListener {
-                            if (userPrefs.getResearchId() != null) startMainActivity()
+                        .addOnFailureListener { e ->
+                            // 네트워크 실패 — 로컬 캐시 있으면 메인으로, 없으면 에러 표시
+                            if (userPrefs.getResearchId() != null) {
+                                startMainActivity()
+                            } else {
+                                Toast.makeText(this, "네트워크 오류: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
                         }
                 }
             }
-            .addOnFailureListener {
-                if (userPrefs.getResearchId() != null) startMainActivity()
+            .addOnFailureListener { e ->
+                if (userPrefs.getResearchId() != null) {
+                    startMainActivity()
+                } else {
+                    Toast.makeText(this, "서버 연결 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
     }
 

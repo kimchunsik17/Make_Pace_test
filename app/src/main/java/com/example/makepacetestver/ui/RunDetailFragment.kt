@@ -334,6 +334,6 @@ class RunDetailFragment : Fragment(), OnMapReadyCallback {
 
     override fun onLowMemory() {
         super.onLowMemory()
-        binding.detailMapView.onLowMemory()
+        _binding?.detailMapView?.onLowMemory()
     }
 }

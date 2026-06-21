@@ -600,8 +600,11 @@
                             android:backgroundTint="@color/sea_blue"
                             android:text="3K"
                             android:textColor="@color/white"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold"
+                            android:minWidth="0dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
                             style="@style/Widget.MaterialComponents.Button" />
 
                         <Button
@@ -613,8 +616,11 @@
                             android:backgroundTint="#2A2A2A"
                             android:text="5K"
                             android:textColor="@color/text_secondary"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold"
+                            android:minWidth="0dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
                             style="@style/Widget.MaterialComponents.Button" />
 
                         <Button
@@ -626,8 +632,11 @@
                             android:backgroundTint="#2A2A2A"
                             android:text="10K"
                             android:textColor="@color/text_secondary"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold"
+                            android:minWidth="0dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
                             style="@style/Widget.MaterialComponents.Button" />
 
                         <Button
@@ -639,8 +648,11 @@
                             android:backgroundTint="#2A2A2A"
                             android:text="하프"
                             android:textColor="@color/text_secondary"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold"
+                            android:minWidth="0dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
                             style="@style/Widget.MaterialComponents.Button" />
 
                         <Button
@@ -652,8 +664,11 @@
                             android:backgroundTint="#2A2A2A"
                             android:text="풀"
                             android:textColor="@color/text_secondary"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold"
+                            android:minWidth="0dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
                             style="@style/Widget.MaterialComponents.Button" />
 
                     </LinearLayout>
