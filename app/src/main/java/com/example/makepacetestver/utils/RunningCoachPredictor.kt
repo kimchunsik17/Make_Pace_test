@@ -81,10 +81,11 @@ class RunningCoachPredictor(context: Context) {
         )
 
         return try {
-            val results = session.run(inputs)
-            val outputTensor = results[0] as OnnxTensor
-            val outputArray = outputTensor.floatBuffer.array()
-            inverseScale(outputArray[0], PACE_MIN, PACE_MAX)
+            session.run(inputs).use { results ->
+                val outputTensor = results[0] as OnnxTensor
+                val outputArray = outputTensor.floatBuffer.array()
+                inverseScale(outputArray[0], PACE_MIN, PACE_MAX)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             null

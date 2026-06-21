@@ -231,15 +231,19 @@ class ClubFragment : Fragment() {
     private fun toggleLike(route: RunningRoute) {
         val userId = auth.currentUser?.uid ?: return
         val routeRef = db.collection("running_routes").document(route.id)
-        val isLiked = route.likedBy.contains(userId)
 
         db.runTransaction { transaction ->
-            if (isLiked) {
+            // 트랜잭션 안에서 최신 상태를 읽어 판단 (카운트-명단 동기화 보장 + 충돌 시 자동 재시도)
+            val snapshot = transaction.get(routeRef)
+            val likedBy = (snapshot.get("likedBy") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            val currentCount = snapshot.getLong("likeCount") ?: 0L
+
+            if (likedBy.contains(userId)) {
                 transaction.update(routeRef, "likedBy", FieldValue.arrayRemove(userId))
-                transaction.update(routeRef, "likeCount", FieldValue.increment(-1))
+                transaction.update(routeRef, "likeCount", (currentCount - 1).coerceAtLeast(0))
             } else {
                 transaction.update(routeRef, "likedBy", FieldValue.arrayUnion(userId))
-                transaction.update(routeRef, "likeCount", FieldValue.increment(1))
+                transaction.update(routeRef, "likeCount", currentCount + 1)
             }
         }.addOnSuccessListener {
             loadRoutes()

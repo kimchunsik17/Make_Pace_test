@@ -429,7 +429,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             tvError.visibility = View.GONE
             goalDistanceM = selectedDistKm * 1000f
             goalPaceSec = paceSec
-            viewModel.setGoalPace(paceSec)
+            viewModel.setGoalPace(paceSec, selectedDistKm)
             updateGoalSettingLabel()
             dialog.dismiss()
         }
