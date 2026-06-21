@@ -197,12 +197,13 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.tvCountdown.visibility = View.VISIBLE
         binding.controllerLayout.visibility = View.GONE
         
-        countdownJob = lifecycleScope.launch {
+        countdownJob = viewLifecycleOwner.lifecycleScope.launch {
             for (i in 3 downTo 1) {
-                binding.tvCountdown.text = i.toString()
+                _binding?.tvCountdown?.text = i.toString()
                 delay(1000)
             }
-            binding.tvCountdown.visibility = View.GONE
+            if (_binding == null) return@launch
+            _binding?.tvCountdown?.visibility = View.GONE
             isCountingDown = false
             startTracking()
         }
@@ -217,14 +218,15 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun startLongPressAnimation() {
-        binding.waveView.visibility = View.VISIBLE
+        _binding?.waveView?.visibility = View.VISIBLE
         longPressAnimator?.cancel()
         longPressAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 2000
             interpolator = LinearInterpolator()
             addUpdateListener { animator ->
+                if (_binding == null) { cancel(); return@addUpdateListener }
                 val progress = animator.animatedValue as Float
-                binding.waveView.setProgress(progress)
+                _binding?.waveView?.setProgress(progress)
                 if (progress >= 1f) {
                     isLongPressing = true
                     finishRun()
@@ -236,8 +238,8 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun stopLongPressAnimation() {
         longPressAnimator?.cancel()
-        binding.waveView.setProgress(0f)
-        binding.waveView.visibility = View.GONE
+        _binding?.waveView?.setProgress(0f)
+        _binding?.waveView?.visibility = View.GONE
     }
 
     private fun finishRun() {
@@ -746,6 +748,8 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     }
 
     override fun onDestroyView() {
+        longPressAnimator?.cancel()
+        countdownJob?.cancel()
         super.onDestroyView()
         binding.mapView.onDestroy()
         _binding = null

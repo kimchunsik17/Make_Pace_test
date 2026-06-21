@@ -106,6 +106,7 @@ class HomeFragment : Fragment() {
         }
         val fusedClient = LocationServices.getFusedLocationProviderClient(requireActivity())
         fusedClient.lastLocation.addOnSuccessListener { loc ->
+            if (!isAdded || _binding == null) return@addOnSuccessListener
             if (loc != null) {
                 val dummyTemp = (15..28).random()
                 binding.tvTemperature.text = "${dummyTemp}°C"
@@ -153,7 +154,7 @@ class HomeFragment : Fragment() {
     private fun hideCalendarAnalysis() {
         binding.calendarOverlay.animate()
             .alpha(0f).scaleX(0.8f).scaleY(0.8f).setDuration(250)
-            .withEndAction { binding.calendarOverlay.visibility = View.GONE }
+            .withEndAction { _binding?.calendarOverlay?.visibility = View.GONE }
             .start()
     }
 
@@ -351,7 +352,7 @@ class HomeFragment : Fragment() {
             return
         }
 
-        val lastRun = runs.maxByOrNull { it.timestamp }!!
+        val lastRun = runs.maxByOrNull { it.timestamp } ?: return
         binding.tvNoRunYet.visibility = View.GONE
 
         val sdf = SimpleDateFormat("M월 d일 (E)", Locale.KOREAN)
