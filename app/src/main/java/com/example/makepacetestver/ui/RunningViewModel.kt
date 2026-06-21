@@ -55,6 +55,9 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val _appropriatePace = MutableStateFlow<Float?>(null)
     val appropriatePace = _appropriatePace.asStateFlow()
 
+    private val _targetPaceDisplay = MutableStateFlow("--'--")
+    val targetPaceDisplay = _targetPaceDisplay.asStateFlow()
+
     private val _elapsedTime = MutableStateFlow("00:00:00")
     val elapsedTime = _elapsedTime.asStateFlow()
 
@@ -86,11 +89,12 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         currentClubRouteId = ""
     }
 
-    /** Planned Running 모드에서 목표 페이스/거리 설정 */
+    /** 목표 페이스/거리 설정 (모드 무관하게 항상 음성 코칭 활성화) */
     fun setGoalPace(paceSec: Int, targetDistanceKm: Float = 0f) {
         targetPaceSeconds = paceSec
         if (targetDistanceKm > 0f) goalTargetDistanceKm = targetDistanceKm
         isPlannedRunning = true
+        _targetPaceDisplay.value = String.format(Locale.getDefault(), "%d'%02d", paceSec / 60, paceSec % 60)
     }
 
 
@@ -131,6 +135,9 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         _pathPointsWithDetails.value = emptyList()
         _isPaused.value = false
         _lastSavedRunId.value = -1L
+        _targetPaceDisplay.value = if (targetPaceSeconds > 0)
+            String.format(Locale.getDefault(), "%d'%02d", targetPaceSeconds / 60, targetPaceSeconds % 60)
+        else "--'--"
         lastLocation = null
         lastStartTimeMillis = 0L
         accumulatedTimeMillis = 0L
@@ -256,6 +263,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         }
 
         this.targetPaceSeconds = baseSeconds.coerceIn(240, 1200)
+        _targetPaceDisplay.value = String.format(Locale.getDefault(), "%d'%02d", targetPaceSeconds / 60, targetPaceSeconds % 60)
     }
 
     init {
@@ -274,23 +282,14 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         viewModelScope.launch {
             while (true) {
                 delay(30000) // 30초마다 체크
-                
-                // 추적 중이 아니거나, 일시정지 상태거나, 가이드 모드가 아니면 건너뜀
-                if (!isTrackingActive || _isPaused.value || !isPlannedRunning) continue
 
-                val currentTargetSec = if (_appropriatePace.value != null) {
-                    (_appropriatePace.value!! * 60).toInt()
-                } else {
-                    targetPaceSeconds
-                }
+                // 추적 중이 아니거나 일시정지 상태면 건너뜀
+                // 목표 페이스가 설정돼 있으면 Just Running 모드에서도 음성 코칭 실행
+                if (!isTrackingActive || _isPaused.value) continue
+                if (targetPaceSeconds <= 0 || currentPaceInSeconds <= 0) continue
 
-                if (currentPaceInSeconds > 0) {
-                    voiceManager?.coachPace(
-                        currentPaceInSeconds,
-                        currentTargetSec,
-                        0.05f
-                    )
-                }
+                // 사용자가 설정한 목표 페이스 기준으로 비교 (AI 블렌딩 값 사용 안 함)
+                voiceManager?.coachPace(currentPaceInSeconds, targetPaceSeconds, 0.05f)
             }
         }
     }

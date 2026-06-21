@@ -548,10 +548,14 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.headerLayout.visibility = View.GONE
         binding.tvGoalSetting.visibility = View.GONE
         binding.trackingStatsLayout.visibility = View.VISIBLE
-        // Planned 모드 + 목표 설정 시 진행 현황 표시
-        if (isPlannedMode && goalDistanceM > 0f) {
+        // 목표(거리 or 페이스) 설정 시 진행 현황 표시 — 모드 무관
+        if (goalDistanceM > 0f || goalPaceSec > 0) {
             binding.goalProgressLayout.visibility = View.VISIBLE
-            binding.tvGoalLabel.text = "목표 ${String.format("%.1f", goalDistanceM / 1000f)}km"
+            if (goalDistanceM > 0f) {
+                binding.tvGoalLabel.text = "목표 ${String.format("%.1f", goalDistanceM / 1000f)}km"
+            } else {
+                binding.tvGoalLabel.text = "목표 ${goalPaceSec / 60}:${String.format("%02d", goalPaceSec % 60)} /km"
+            }
         }
         
         viewModel.startTimer()
@@ -643,17 +647,10 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
+        // 목표 페이스 표시 (사용자 설정값 우선, AI 예측은 보조)
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.appropriatePace.collectLatest { pace ->
-                _binding?.let {
-                    if (pace != null) {
-                        val minutes = pace.toInt()
-                        val seconds = ((pace - minutes) * 60).toInt()
-                        it.tvPredictedPace.text = String.format(Locale.getDefault(), "%d'%02d", minutes, seconds)
-                    } else {
-                        it.tvPredictedPace.text = "--'--"
-                    }
-                }
+            viewModel.targetPaceDisplay.collectLatest { targetPace ->
+                _binding?.tvPredictedPace?.text = targetPace
             }
         }
 

@@ -89,7 +89,7 @@
             android:textColor="@color/text_secondary"
             android:textSize="18sp" />
 
-        <!-- AI 예측 페이스 -->
+        <!-- 목표 페이스 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -100,7 +100,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="현재 적정 페이스"
+                android:text="🎯 목표 페이스"
                 android:textColor="@color/sea_blue_light"
                 android:textSize="12sp"
                 android:textStyle="bold" />
