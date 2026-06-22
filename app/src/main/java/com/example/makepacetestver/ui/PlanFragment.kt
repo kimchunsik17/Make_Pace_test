@@ -36,8 +36,12 @@ class PlanFragment : Fragment() {
 
         val adapter = PaceStrategyAdapter(StrategyProvider.strategies) { strategy ->
             viewModel.setStrategy(strategy)
-            // 러닝 화면으로 이동
-            findNavController().navigate(R.id.nav_run)
+            // 사용자가 직접 페이스를 입력한 경우 AI 계산 결과 덮어쓰기
+            strategy.customTargetPaceSec?.let { paceSec ->
+                viewModel.setGoalPace(paceSec, strategy.customTargetDistanceKm ?: 0f)
+            }
+            // 러닝 화면으로 이동 — 바텀 네비 탭 선택 방식 사용
+            (requireActivity() as? com.example.makepacetestver.MainActivity)?.selectBottomNavTab(R.id.nav_run)
         }
 
         binding.rvStrategies.layoutManager = LinearLayoutManager(requireContext())

@@ -19,6 +19,7 @@ firebaseBom = "32.7.1"
 googleServices = "4.4.0"
 navigation = "2.7.7"
 onnxruntime = "1.20.0"
+glide = "4.16.0"
 
 firebaseAnalyticsKtx = "21.5.1"
 playServicesAuth = "21.0.0"
@@ -51,6 +52,7 @@ navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fr
 navigation-ui-ktx = { group = "androidx.navigation", name = "navigation-ui-ktx", version.ref = "navigation" }
 onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
 mpandroidchart = { group = "com.github.PhilJay", name = "MPAndroidChart", version = "v3.1.0" }
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -8,6 +8,8 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.example.makepacetestver.LoginActivity
 import com.example.makepacetestver.R
 import com.example.makepacetestver.data.UserPreferences
@@ -49,6 +51,17 @@ class SettingsFragment : Fragment() {
 
     private fun loadUserProfile() {
         val user = auth.currentUser ?: return
+
+        // Google 프로필 사진 Glide로 로드
+        Glide.with(this)
+            .load(user.photoUrl)
+            .transform(CircleCrop())
+            .placeholder(android.R.drawable.ic_menu_myplaces)
+            .error(android.R.drawable.ic_menu_myplaces)
+            .into(binding.ivProfilePhoto)
+        binding.tvProfileName.text = user.displayName ?: "러너"
+        binding.tvProfileEmail.text = user.email ?: ""
+
         db.collection("users").document(user.uid).get()
             .addOnSuccessListener { document ->
                 if (!isAdded) return@addOnSuccessListener
@@ -59,7 +72,7 @@ class SettingsFragment : Fragment() {
                             it.etAge.setText(researchDoc.getLong("age")?.toString() ?: "")
                             it.etHeight.setText(researchDoc.getDouble("height")?.toString() ?: "")
                             it.etWeight.setText(researchDoc.getDouble("weight")?.toString() ?: "")
-                            
+
                             val gender = researchDoc.getString("gender") ?: ""
                             if (gender == "male") it.rbMale.isChecked = true
                             else if (gender == "female") it.rbFemale.isChecked = true

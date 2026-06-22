@@ -49,11 +49,14 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private val _currentPace = MutableStateFlow("--'--")
     val currentPace = _currentPace.asStateFlow()
 
-    private val _averagePace = MutableStateFlow("0'00")
+    private val _averagePace = MutableStateFlow("--'--")
     val averagePace = _averagePace.asStateFlow()
 
     private val _appropriatePace = MutableStateFlow<Float?>(null)
     val appropriatePace = _appropriatePace.asStateFlow()
+
+    private val _targetPaceDisplay = MutableStateFlow("--'--")
+    val targetPaceDisplay = _targetPaceDisplay.asStateFlow()
 
     private val _elapsedTime = MutableStateFlow("00:00:00")
     val elapsedTime = _elapsedTime.asStateFlow()
@@ -86,11 +89,12 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         currentClubRouteId = ""
     }
 
-    /** Planned Running 모드에서 목표 페이스/거리 설정 */
+    /** 목표 페이스/거리 설정 (모드 무관하게 항상 음성 코칭 활성화) */
     fun setGoalPace(paceSec: Int, targetDistanceKm: Float = 0f) {
         targetPaceSeconds = paceSec
         if (targetDistanceKm > 0f) goalTargetDistanceKm = targetDistanceKm
         isPlannedRunning = true
+        _targetPaceDisplay.value = String.format(Locale.getDefault(), "%d'%02d", paceSec / 60, paceSec % 60)
     }
 
 
@@ -103,6 +107,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     private var lastDistanceMilestone = 0 // km 단위
     private val reachedPercentMilestones = mutableSetOf<Int>() // 25, 50, 75, 100
     private var goalTargetDistanceKm: Float = 0f  // 목표 다이얼로그로 설정한 목표 거리
+    private var smoothedPaceSeconds: Int = 0  // EMA 스무딩된 페이스
+    private var averagePaceInSeconds: Int = 0 // 전체 평균 페이스 (음성 코칭용)
 
     // 현재 클럽 루트 ID (댓글/완주 기록용)
     var currentClubRouteId: String = ""
@@ -122,7 +128,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
     fun resetRunData() {
         _distance.value = 0f
         _currentPace.value = "--'--"
-        _averagePace.value = "0'00"
+        _averagePace.value = "--'--"
         _appropriatePace.value = null
         _elapsedTime.value = "00:00:00"
         _elevationGain.value = 0.0
@@ -130,10 +136,15 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         _pathPointsWithDetails.value = emptyList()
         _isPaused.value = false
         _lastSavedRunId.value = -1L
+        _targetPaceDisplay.value = if (targetPaceSeconds > 0)
+            String.format(Locale.getDefault(), "%d'%02d", targetPaceSeconds / 60, targetPaceSeconds % 60)
+        else "--'--"
         lastLocation = null
         lastStartTimeMillis = 0L
         accumulatedTimeMillis = 0L
         currentPaceInSeconds = 0
+        smoothedPaceSeconds = 0
+        averagePaceInSeconds = 0
         lastDistanceMilestone = 0
         reachedPercentMilestones.clear()
         goalTargetDistanceKm = 0f
@@ -238,6 +249,8 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         this.isTrackingActive = active
     }
 
+    fun getSelectedStrategyTitle(): String? = selectedStrategy?.title
+
     private fun calculateDynamicTargetPace(strategy: PaceStrategy) {
         var baseSeconds = strategy.basePaceMinutes * 60
         
@@ -254,6 +267,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         }
 
         this.targetPaceSeconds = baseSeconds.coerceIn(240, 1200)
+        _targetPaceDisplay.value = String.format(Locale.getDefault(), "%d'%02d", targetPaceSeconds / 60, targetPaceSeconds % 60)
     }
 
     init {
@@ -272,23 +286,14 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
         viewModelScope.launch {
             while (true) {
                 delay(30000) // 30초마다 체크
-                
-                // 추적 중이 아니거나, 일시정지 상태거나, 가이드 모드가 아니면 건너뜀
-                if (!isTrackingActive || _isPaused.value || !isPlannedRunning) continue
 
-                val currentTargetSec = if (_appropriatePace.value != null) {
-                    (_appropriatePace.value!! * 60).toInt()
-                } else {
-                    targetPaceSeconds
-                }
+                // 추적 중이 아니거나 일시정지 상태면 건너뜀
+                // 목표 페이스가 설정돼 있으면 Just Running 모드에서도 음성 코칭 실행
+                if (!isTrackingActive || _isPaused.value) continue
+                if (targetPaceSeconds <= 0 || averagePaceInSeconds <= 0) continue
 
-                if (currentPaceInSeconds > 0) {
-                    voiceManager?.coachPace(
-                        currentPaceInSeconds,
-                        currentTargetSec,
-                        0.05f
-                    )
-                }
+                // 평균 페이스 기준으로 코칭 (GPS 초기 튐 영향 없음)
+                voiceManager?.coachPace(averagePaceInSeconds, targetPaceSeconds, 0.05f)
             }
         }
     }
@@ -309,13 +314,15 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                 val speed = if (newLocation.speed > 0) newLocation.speed else (distanceToLast / timeDelta)
                 
                 // 속도 보정: 0.5m/s(시속 1.8km) 이하이면 멈춘 것으로 간주
-                if (speed > 0.5) { 
-                    val paceSec = (1000 / speed).toInt()
-                    // 현실적인 페이스 범위 설정 (2분/km ~ 15분/km)
-                    if (paceSec in 120..900) {
-                        currentPaceInSeconds = paceSec
+                if (speed > 0.5) {
+                    val rawPaceSec = (1000 / speed).toInt()
+                    if (rawPaceSec in 120..900) {
+                        // EMA 스무딩 (α=0.25: 새 값 25%, 이전 값 75%) — GPS 튐 방지
+                        smoothedPaceSeconds = if (smoothedPaceSeconds == 0) rawPaceSec
+                        else ((0.25f * rawPaceSec) + (0.75f * smoothedPaceSeconds)).toInt()
+                        currentPaceInSeconds = smoothedPaceSeconds
                         _currentPace.value = String.format(Locale.getDefault(), "%d'%02d", currentPaceInSeconds / 60, currentPaceInSeconds % 60)
-                    } else if (paceSec > 900) {
+                    } else if (rawPaceSec > 900) {
                         _currentPace.value = "--'--"
                         currentPaceInSeconds = 0
                     }
@@ -330,6 +337,7 @@ class RunningViewModel(private val runDao: RunDao) : ViewModel() {
                     val avgPaceSec = (totalElapsedSec / (_distance.value / 1000)).toInt()
                     if (avgPaceSec < 1500) { // 비현실적인 페이스 방지
                         _averagePace.value = String.format(Locale.getDefault(), "%d'%02d", avgPaceSec / 60, avgPaceSec % 60)
+                        averagePaceInSeconds = avgPaceSec
                     }
 
                     // 1km 마다 브리핑 (사용자 요청 반영)

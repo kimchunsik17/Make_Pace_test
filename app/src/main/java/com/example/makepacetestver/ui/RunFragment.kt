@@ -110,9 +110,9 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
         })
 
-        // 목표 설정 버튼
+        // 목표 설정 버튼 — 항상 다이얼로그 열기 (모드 무관)
         binding.tvGoalSetting.setOnClickListener {
-            if (isPlannedMode) showGoalSettingDialog()
+            showGoalSettingDialog()
         }
 
         // 머신러닝 예측기 및 보이스 매니저 초기화
@@ -121,6 +121,7 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
         setupStopButtonLogic()
         observeViewModel()
+        updateGoalSettingLabel()
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -196,12 +197,13 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.tvCountdown.visibility = View.VISIBLE
         binding.controllerLayout.visibility = View.GONE
         
-        countdownJob = lifecycleScope.launch {
+        countdownJob = viewLifecycleOwner.lifecycleScope.launch {
             for (i in 3 downTo 1) {
-                binding.tvCountdown.text = i.toString()
+                _binding?.tvCountdown?.text = i.toString()
                 delay(1000)
             }
-            binding.tvCountdown.visibility = View.GONE
+            if (_binding == null) return@launch
+            _binding?.tvCountdown?.visibility = View.GONE
             isCountingDown = false
             startTracking()
         }
@@ -216,14 +218,15 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun startLongPressAnimation() {
-        binding.waveView.visibility = View.VISIBLE
+        _binding?.waveView?.visibility = View.VISIBLE
         longPressAnimator?.cancel()
         longPressAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 2000
             interpolator = LinearInterpolator()
             addUpdateListener { animator ->
+                if (_binding == null) { cancel(); return@addUpdateListener }
                 val progress = animator.animatedValue as Float
-                binding.waveView.setProgress(progress)
+                _binding?.waveView?.setProgress(progress)
                 if (progress >= 1f) {
                     isLongPressing = true
                     finishRun()
@@ -235,8 +238,8 @@ class RunFragment : Fragment(), OnMapReadyCallback {
 
     private fun stopLongPressAnimation() {
         longPressAnimator?.cancel()
-        binding.waveView.setProgress(0f)
-        binding.waveView.visibility = View.GONE
+        _binding?.waveView?.setProgress(0f)
+        _binding?.waveView?.visibility = View.GONE
     }
 
     private fun finishRun() {
@@ -436,6 +439,12 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             goalDistanceM = selectedDistKm * 1000f
             goalPaceSec = paceSec
             viewModel.setGoalPace(paceSec, selectedDistKm)
+            // 목표 설정 시 자동으로 Planned Running 모드 전환
+            if (!isPlannedMode) {
+                binding.tabLayout.selectTab(binding.tabLayout.getTabAt(1))
+                isPlannedMode = true
+                viewModel.setPlannedRunning(true)
+            }
             updateGoalSettingLabel()
             dialog.dismiss()
         }
@@ -528,10 +537,18 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         val isPlanned = binding.tabLayout.selectedTabPosition == 1
         viewModel.setPlannedRunning(isPlanned)
         
-        if (isPlanned) {
-            viewModel.speakImmediate("러닝 가이드를 시작합니다. 페이스에 맞춰 달려주세요.")
-        } else {
-            viewModel.speakImmediate("자유 러닝을 시작합니다.")
+        val strategyTitle = viewModel.getSelectedStrategyTitle()
+        when {
+            isPlanned && strategyTitle != null -> {
+                val shortTitle = strategyTitle.substringBefore("(").trim()
+                val particle = if (shortTitle.last().code in 0xAC00..0xD7A3 &&
+                    (shortTitle.last().code - 0xAC00) % 28 != 0) "을" else "를"
+                viewModel.speakImmediate("${shortTitle}${particle} 시작합니다. 페이스에 맞춰 달려보세요.")
+            }
+            goalPaceSec > 0 -> viewModel.speakImmediate(
+                "목표 러닝을 시작합니다. 목표 페이스 ${goalPaceSec / 60}분 ${String.format("%02d", goalPaceSec % 60)}초."
+            )
+            else -> viewModel.speakImmediate("자유 러닝을 시작합니다.")
         }
 
         (requireActivity() as? MainActivity)?.setBottomNavVisibility(false)
@@ -542,10 +559,14 @@ class RunFragment : Fragment(), OnMapReadyCallback {
         binding.headerLayout.visibility = View.GONE
         binding.tvGoalSetting.visibility = View.GONE
         binding.trackingStatsLayout.visibility = View.VISIBLE
-        // Planned 모드 + 목표 설정 시 진행 현황 표시
-        if (isPlannedMode && goalDistanceM > 0f) {
+        // 목표(거리 or 페이스) 설정 시 진행 현황 표시 — 모드 무관
+        if (goalDistanceM > 0f || goalPaceSec > 0) {
             binding.goalProgressLayout.visibility = View.VISIBLE
-            binding.tvGoalLabel.text = "목표 ${String.format("%.1f", goalDistanceM / 1000f)}km"
+            if (goalDistanceM > 0f) {
+                binding.tvGoalLabel.text = "목표 ${String.format("%.1f", goalDistanceM / 1000f)}km"
+            } else {
+                binding.tvGoalLabel.text = "목표 ${goalPaceSec / 60}:${String.format("%02d", goalPaceSec % 60)} /km"
+            }
         }
         
         viewModel.startTimer()
@@ -580,25 +601,28 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             viewModel.distance.collectLatest { distance ->
                 _binding?.let { b ->
                     b.tvDistance.text = String.format(Locale.getDefault(), "%.2f", distance / 1000f)
-                    // 목표 진행 업데이트
-                    if (isPlannedMode && goalDistanceM > 0f && isTracking) {
-                        val remaining = ((goalDistanceM - distance) / 1000f).coerceAtLeast(0f)
-                        b.tvGoalRemaining.text = String.format("%.2f", remaining)
-                        val progress = ((distance / goalDistanceM) * 100).toInt().coerceIn(0, 100)
-                        b.pbGoalProgress.progress = progress
-                        // 페이스 상태
-                        if (goalPaceSec > 0) {
-                            val currentPaceStr = b.tvCurrentPace.text.toString()
-                            val currentSec = parsePaceStr(currentPaceStr)
-                            b.tvGoalPaceStatus.text = when {
-                                currentSec <= 0 -> "페이스 측정 중"
-                                currentSec < goalPaceSec - 10 -> "🟢 목표보다 빠름"
-                                currentSec > goalPaceSec + 10 -> "🔴 목표보다 느림"
-                                else -> "🟡 페이스 유지 중"
+                    if (isTracking) {
+                        var goalReached = false
+                        // 거리 기반 진행률 (거리 목표 있을 때만)
+                        if (goalDistanceM > 0f) {
+                            val remaining = ((goalDistanceM - distance) / 1000f).coerceAtLeast(0f)
+                            b.tvGoalRemaining.text = String.format("%.2f", remaining)
+                            val progress = ((distance / goalDistanceM) * 100).toInt().coerceIn(0, 100)
+                            b.pbGoalProgress.progress = progress
+                            if (remaining <= 0f) {
+                                b.tvGoalPaceStatus.text = "🎉 목표 달성!"
+                                goalReached = true
                             }
                         }
-                        if (remaining <= 0f) {
-                            b.tvGoalPaceStatus.text = "🎉 목표 달성!"
+                        // 페이스 상태 (목표 페이스 있고 아직 목표 달성 전)
+                        if (goalPaceSec > 0 && !goalReached) {
+                            val avgSec = parsePaceStr(b.tvAveragePace.text.toString())
+                            b.tvGoalPaceStatus.text = when {
+                                avgSec <= 0 -> "페이스 측정 중"
+                                avgSec < goalPaceSec - 10 -> "🟢 목표보다 빠름"
+                                avgSec > goalPaceSec + 10 -> "🔴 목표보다 느림"
+                                else -> "🟡 페이스 유지 중"
+                            }
                         }
                     }
                 }
@@ -637,17 +661,10 @@ class RunFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
+        // 목표 페이스 표시 (사용자 설정값 우선, AI 예측은 보조)
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.appropriatePace.collectLatest { pace ->
-                _binding?.let {
-                    if (pace != null) {
-                        val minutes = pace.toInt()
-                        val seconds = ((pace - minutes) * 60).toInt()
-                        it.tvPredictedPace.text = String.format(Locale.getDefault(), "%d'%02d", minutes, seconds)
-                    } else {
-                        it.tvPredictedPace.text = "--'--"
-                    }
-                }
+            viewModel.targetPaceDisplay.collectLatest { targetPace ->
+                _binding?.tvPredictedPace?.text = targetPace
             }
         }
 
@@ -731,6 +748,8 @@ class RunFragment : Fragment(), OnMapReadyCallback {
     }
 
     override fun onDestroyView() {
+        longPressAnimator?.cancel()
+        countdownJob?.cancel()
         super.onDestroyView()
         binding.mapView.onDestroy()
         _binding = null

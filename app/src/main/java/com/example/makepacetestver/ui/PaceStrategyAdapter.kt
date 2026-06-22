@@ -28,6 +28,15 @@ class PaceStrategyAdapter(
 
     override fun getItemCount() = strategies.size
 
+    private fun parsePaceStr(s: String): Int {
+        val parts = s.split(":")
+        if (parts.size != 2) return 0
+        val min = parts[0].toIntOrNull() ?: return 0
+        val sec = parts[1].toIntOrNull() ?: return 0
+        if (min !in 1..20 || sec !in 0..59) return 0
+        return min * 60 + sec
+    }
+
     inner class ViewHolder(private val binding: ItemStrategyCardBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(strategy: PaceStrategy, isExpanded: Boolean) {
             binding.tvStrategyTitle.text = strategy.title
@@ -56,13 +65,21 @@ class PaceStrategyAdapter(
             binding.btnSelect.setOnClickListener {
                 val distanceStr = binding.etTargetDistance.text.toString()
                 val distance = distanceStr.toFloatOrNull()
-                
                 if (distance == null || distance <= 0f) {
-                    Toast.makeText(binding.root.context, "목표 거리를 올바르게 입력해주세요.", Toast.LENGTH_SHORT).show()
-                } else {
-                    strategy.customTargetDistanceKm = distance
-                    onSelect(strategy)
+                    Toast.makeText(binding.root.context, "목표 거리를 입력해주세요. (예: 5.0)", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
                 }
+
+                val paceStr = binding.etTargetPace.text.toString().trim().replace(';', ':')
+                val paceSec = if (paceStr.isNotEmpty()) parsePaceStr(paceStr) else 0
+                if (paceStr.isNotEmpty() && paceSec <= 0) {
+                    Toast.makeText(binding.root.context, "페이스 형식이 올바르지 않아요. (예: 6:00)", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                strategy.customTargetDistanceKm = distance
+                strategy.customTargetPaceSec = if (paceSec > 0) paceSec else null
+                onSelect(strategy)
             }
         }
     }

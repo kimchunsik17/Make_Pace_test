@@ -27,7 +27,12 @@ class LoginActivity : AppCompatActivity() {
         val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
         try {
             val account = task.getResult(ApiException::class.java)
-            firebaseAuthWithGoogle(account.idToken!!)
+            val idToken = account?.idToken
+            if (idToken == null) {
+                Toast.makeText(this, "로그인 토큰을 받지 못했습니다. 다시 시도해주세요.", Toast.LENGTH_SHORT).show()
+                return@registerForActivityResult
+            }
+            firebaseAuthWithGoogle(idToken)
         } catch (e: ApiException) {
             Toast.makeText(this, "구글 로그인 실패: ${e.message}", Toast.LENGTH_SHORT).show()
         }
